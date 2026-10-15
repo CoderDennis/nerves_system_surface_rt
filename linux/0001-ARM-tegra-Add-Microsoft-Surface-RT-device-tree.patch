@@ -1,0 +1,779 @@
+From 563cb3934fcfdf81111ee96dd253403a27d81d44 Mon Sep 17 00:00:00 2001
+From: Dennis Palmer <dodava@gmail.com>
+Date: Thu, 15 Oct 2026 17:00:11 +0200
+Subject: [PATCH] ARM: tegra: Add Microsoft Surface RT device tree
+
+Add device trees for the Microsoft Surface RT (Tegra 3), taken from the
+Open Surface RT community kernel (Open-Surface-RT/grate-linux, master
+branch, commit 25a5100, Feb 2022) and adapted to mainline:
+
+- Use node paths for the mmc aliases, since mainline tegra30.dtsi has
+  no sdmmcN labels.
+- Leave out the Touch/Type Cover node. It depends on the out-of-tree
+  i2c-hotplug-gpio driver.
+- Define the core voltage stub regulator in the -efi variant, since
+  mainline tegra30.dtsi doesn't have one.
+
+The -efi variant is for booting through the UEFI firmware after the
+Yahallo jailbreak. It disables the PMIC core regulator, CPU DVFS, the
+L2 cache and CPU idle, which don't work there.
+---
+ arch/arm/boot/dts/nvidia/Makefile             |   2 +
+ .../tegra30-microsoft-surface-rt-efi.dts      |  75 ++
+ .../nvidia/tegra30-microsoft-surface-rt.dts   | 650 ++++++++++++++++++
+ 3 files changed, 727 insertions(+)
+ create mode 100644 arch/arm/boot/dts/nvidia/tegra30-microsoft-surface-rt-efi.dts
+ create mode 100644 arch/arm/boot/dts/nvidia/tegra30-microsoft-surface-rt.dts
+
+diff --git a/arch/arm/boot/dts/nvidia/Makefile b/arch/arm/boot/dts/nvidia/Makefile
+index 2ed2d923c..82a94a220 100644
+--- a/arch/arm/boot/dts/nvidia/Makefile
++++ b/arch/arm/boot/dts/nvidia/Makefile
+@@ -45,5 +45,7 @@ dtb-$(CONFIG_ARCH_TEGRA_3x_SOC) += \
+ 	tegra30-colibri-eval-v3.dtb \
+ 	tegra30-lg-p880.dtb \
+ 	tegra30-lg-p895.dtb \
++	tegra30-microsoft-surface-rt.dtb \
++	tegra30-microsoft-surface-rt-efi.dtb \
+ 	tegra30-ouya.dtb \
+ 	tegra30-pegatron-chagall.dtb
+diff --git a/arch/arm/boot/dts/nvidia/tegra30-microsoft-surface-rt-efi.dts b/arch/arm/boot/dts/nvidia/tegra30-microsoft-surface-rt-efi.dts
+new file mode 100644
+index 000000000..4a5acf553
+--- /dev/null
++++ b/arch/arm/boot/dts/nvidia/tegra30-microsoft-surface-rt-efi.dts
+@@ -0,0 +1,75 @@
++// SPDX-License-Identifier: GPL-2.0-only
++
++#include "tegra30-microsoft-surface-rt.dts"
++
++/*
++ * Temporary Microsoft Surface RT device-tree for EFI booting.
++ * Replacing PMIC with fixed regulators.
++ */
++
++/ {
++	compatible = "microsoft,surface-rt-efi", "microsoft,surface-rt", "nvidia,tegra30";
++
++	/* L2 cache does not work yet */
++	/delete-node/ cache-controller@50043000;
++
++	/*
++	 * Mainline tegra30.dtsi has no core voltage stub regulator, so define
++	 * one here (same values as the community kernel's tegra30.dtsi).
++	 */
++	vdd_pd_core_stub: core-domain-stub-regulator {
++		compatible = "regulator-fixed";
++		regulator-name = "vdd_core_stub";
++		regulator-min-microvolt = <1350000>;
++		regulator-max-microvolt = <1350000>;
++		regulator-always-on;
++	};
++
++	pmc@7000e400 {
++		/* CPU Idle does not work yet, disabling LP2 */
++		/delete-property/ nvidia,suspend-mode;
++
++		/* Core regulator cannot work with UEFI, use fallback stub */
++		core-supply = <&vdd_pd_core_stub>;
++	};
++
++	ldo5_reg: tps65911-ldo5 {
++		compatible = "regulator-fixed";
++		regulator-name = "vddio_sdmmc";
++		regulator-min-microvolt = <3300000>;
++		regulator-max-microvolt = <3300000>;
++		regulator-always-on;
++	};
++
++	/* Core regulator cannot work with UEFI, delete it */
++	i2c@7000d000 {
++		/delete-node/ core-regulator@60;
++	};
++
++	/* DVFS cannot work with UEFI, delete it */
++	cpus {
++		cpu@0 {
++			/delete-property/ cpu-supply;
++			/delete-property/ operating-points-v2;
++		};
++
++		cpu@1 {
++			/delete-property/ cpu-supply;
++			/delete-property/ operating-points-v2;
++		};
++
++		cpu@2 {
++			/delete-property/ cpu-supply;
++			/delete-property/ operating-points-v2;
++		};
++
++		cpu@3 {
++			/delete-property/ cpu-supply;
++			/delete-property/ operating-points-v2;
++		};
++	};
++};
++
++&pmic {
++	/delete-node/ regulators;
++};
+diff --git a/arch/arm/boot/dts/nvidia/tegra30-microsoft-surface-rt.dts b/arch/arm/boot/dts/nvidia/tegra30-microsoft-surface-rt.dts
+new file mode 100644
+index 000000000..ae3508cee
+--- /dev/null
++++ b/arch/arm/boot/dts/nvidia/tegra30-microsoft-surface-rt.dts
+@@ -0,0 +1,650 @@
++// SPDX-License-Identifier: GPL-2.0
++
++/dts-v1/;
++
++#include "tegra30.dtsi"
++#include "tegra30-cpu-opp.dtsi"
++#include "tegra30-cpu-opp-microvolt.dtsi"
++#include <dt-bindings/input/input.h>
++
++/ {
++	model = "Microsoft Surface RT";
++	compatible = "microsoft,surface-rt", "nvidia,tegra30";
++
++	aliases {
++		mmc0 = "/mmc@78000600"; /* eMMC */
++		mmc1 = "/mmc@78000000"; /* uSD slot */
++		mmc2 = "/mmc@78000400"; /* WiFi */
++		rtc0 = &pmic;
++		rtc1 = "/rtc@7000e000";
++		serial0 = &uarta; /* console */
++		serial1 = &uartc; /* Bluetooth */
++	};
++
++	chosen {
++		stdout-path = "serial0:115200n8";
++	};
++
++	/* 2GB DDR3 Memory */
++	memory@80000000 {
++		reg = <0x80000000 0x40000000>; // 1 GiB is wrong size but 2GB doesn't work atm
++	};
++
++	/* clock from PMIC */
++	clk32k_in: clock-32 {
++		compatible = "fixed-clock";
++		clock-frequency = <32768>;
++		#clock-cells = <0>;
++	};
++
++	pinmux@70000868 {
++		pinctrl-names = "default";
++		pinctrl-0 = <&state_default>;
++
++		state_default: pinmux {
++			/* HDMI HOTPLUG_DETECT */
++			hdmi-interrupt {
++				nvidia,pins = "hdmi_int_pn7";
++				nvidia,function = "hdmi";
++				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
++				nvidia,tristate = <TEGRA_PIN_ENABLE>;
++				nvidia,enable-input = <TEGRA_PIN_ENABLE>;
++			};
++
++			vol-keys {
++				nvidia,pins = "kb_row14_ps6", //down
++					      "kb_row15_ps7"; //up
++				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
++				nvidia,tristate = <TEGRA_PIN_ENABLE>;
++				nvidia,enable-input = <TEGRA_PIN_ENABLE>;
++			};
++
++			backlight-pwm {
++				nvidia,pins = "gmi_ad8_ph0";
++				nvidia,function = "pwm0";
++				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
++				nvidia,tristate = <TEGRA_PIN_DISABLE>;
++				nvidia,enable-input = <TEGRA_PIN_DISABLE>;
++			};
++
++			wifi-interrupt {
++				nvidia,pins = "pu5";
++				nvidia,pull = <TEGRA_PIN_PULL_DOWN>;
++				nvidia,tristate = <TEGRA_PIN_DISABLE>;
++				nvidia,enable-input = <TEGRA_PIN_ENABLE>;
++			};
++
++			sdmmc1-wp {
++				nvidia,pins = "vi_d11_pt3";
++				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
++				nvidia,tristate = <TEGRA_PIN_DISABLE>;
++				nvidia,enable-input = <TEGRA_PIN_ENABLE>;
++			};
++
++			charger-interrupt {
++				nvidia,pins = "gmi_cs0_n_pj0";
++				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
++				nvidia,tristate = <TEGRA_PIN_ENABLE>;
++				nvidia,enable-input = <TEGRA_PIN_ENABLE>;
++			};
++		};
++	};
++
++	serial@70006000 {
++		status = "okay";
++	};
++
++	serial@70006200 {
++		status = "okay";
++		compatible = "nvidia,tegra30-hsuart";
++
++		/* Bluetooth - Marvell 88W8797*/
++	};
++
++	/* MS HID - I2C1 */
++	i2c@7000c000 {
++		status = "okay";
++		clock-frequency = <400000>;
++
++		/* Sensor Collection at 0x28 */
++		sensor@28 {
++			compatible = "hid-over-i2c";
++			reg = <0x28>;
++			hid-descr-addr = <0x0001>;
++			interrupt-parent = <&gpio>;
++			interrupts = <TEGRA_GPIO(BB, 6) IRQ_TYPE_LEVEL_LOW>;
++		};
++		/* EDID at 0x50*/
++	};
++
++	/*
++	 * TODO: Touch/Type Cover. The community kernel attaches the cover
++	 * (HID over I2C at 0x00 on I2C1, descriptor at 0x0041, IRQ GPIO O5)
++	 * through an "i2c-hotplug-gpio" bridge with presence detection on
++	 * GPIO S0. That driver isn't in mainline yet, so the node is left out.
++	 */
++
++	/* Daughter board - I2C2 */
++	i2c@7000c400 {
++		status = "okay";
++		clock-frequency = <400000>;
++
++		/* Atmel Maxtouch, HID over I2C */
++		touchscreen@5b {
++			compatible = "hid-over-i2c";
++			reg = <0x5b>;
++			hid-descr-addr = <0x0000>;
++			interrupt-parent = <&gpio>;
++			interrupts = <TEGRA_GPIO(K, 2) IRQ_TYPE_LEVEL_LOW>;
++		};
++	};
++
++	/* Cams - I2C3 */
++	i2c@7000c500 {
++		status = "okay";
++		clock-frequency = <100000>;
++		/* Cams at 0x10 and 0x72 */
++	};
++
++	/* HDMI DisplayDataChannel - I2C4 */
++	hdmi_ddc: i2c@7000c700 {
++		status = "okay";
++		clock-frequency = <100000>;
++	};
++
++	/* System bus - I2C5 */
++	i2c@7000d000 {
++		status = "okay";
++		clock-frequency = <400000>;
++
++		battery@a {
++			compatible = "microsoft,surface-rt-ec";
++			reg = <0x0a>;
++			enable-gpios = <&gpio TEGRA_GPIO(N, 3) GPIO_ACTIVE_HIGH>;
++			interrupt-parent = <&gpio>;
++			interrupts = <TEGRA_GPIO(J, 0) IRQ_TYPE_EDGE_RISING>;
++		};
++
++		wm8962: audio-codec@1a {
++			compatible = "wlf,wm8962";
++			reg = <0x1a>;
++			interrupt-parent = <&gpio>;
++			interrupts = <TEGRA_GPIO(W, 3) IRQ_TYPE_LEVEL_HIGH>;
++
++			AVDD-supply  = <&vdd_1v8_sys>;
++			CPVDD-supply = <&vdd_1v8_sys>;
++			DBVDD-supply = <&vdd_1v8_sys>;
++			DCVDD-supply = <&vdd_1v8_sys>;
++			MICVDD-supply = <&vdd_1v8_sys>;
++			PLLVDD-supply = <&vdd_1v8_sys>;
++			SPKVDD1-supply = <&vdd_1v8_sys>;
++			SPKVDD2-supply = <&vdd_1v8_sys>;
++		};
++
++		pmic: pmic@2d {
++			compatible = "ti,tps65911";
++			reg = <0x2d>;
++
++			interrupts = <GIC_SPI 86 IRQ_TYPE_LEVEL_HIGH>;
++			#interrupt-cells = <2>;
++			interrupt-controller;
++
++			ti,system-power-controller;
++
++			#gpio-cells = <2>;
++			gpio-controller;
++
++			regulators {
++				vdd_cpu: vddctrl {
++					regulator-name = "vdd_cpu,vdd_sys";
++					regulator-min-microvolt = <800000>;
++					regulator-max-microvolt = <1250000>;
++					regulator-coupled-with = <&vdd_core>;
++					regulator-coupled-max-spread = <300000>;
++					regulator-max-step-microvolt = <100000>;
++					regulator-always-on;
++					ti,regulator-ext-sleep-control = <1>;
++
++					nvidia,tegra-cpu-regulator;
++				};
++
++				ldo1_reg: ldo1 {
++					regulator-name = "tCoverAndSensorCollection";
++					regulator-min-microvolt = <1800000>;
++					regulator-max-microvolt = <1800000>;
++					regulator-always-on;
++					regulator-boot-on;
++				};
++
++				ldo3_reg: ldo3 {
++					regulator-name = "tCoverPower";
++					regulator-min-microvolt = <2800000>;
++					regulator-max-microvolt = <2800000>;
++					regulator-always-on;
++					regulator-boot-on;
++				};
++
++				ldo5_reg: ldo5 {
++					regulator-name = "vddio_sdmmc";
++					regulator-min-microvolt = <1800000>;
++					regulator-max-microvolt = <3300000>;
++					regulator-always-on;
++				};
++			};
++		};
++
++		nct1008: temperature-sensor@4c {
++			compatible = "onnn,nct1008";
++			reg = <0x4c>;
++			interrupt-parent = <&gpio>;
++			interrupts = <TEGRA_GPIO(DD, 5) IRQ_TYPE_EDGE_FALLING>;
++			#thermal-sensor-cells = <1>;
++		};
++
++		vdd_core: core-regulator@60 {
++			compatible = "ti,tps62361";
++			reg = <0x60>;
++
++			regulator-name = "tps62361-vout";
++			regulator-min-microvolt = <500000>;
++			regulator-max-microvolt = <1350000>;
++			regulator-coupled-with = <&vdd_cpu>;
++			regulator-coupled-max-spread = <300000>;
++			regulator-max-step-microvolt = <100000>;
++			regulator-boot-on;
++			regulator-always-on;
++			ti,enable-vout-discharge;
++			ti,vsel0-state-high;
++			ti,vsel1-state-high;
++
++			nvidia,tegra-core-regulator;
++		};
++	};
++
++	pmc@7000e400 {
++		status = "okay";
++		nvidia,invert-interrupt;
++		nvidia,suspend-mode = <1>;
++		nvidia,cpu-pwr-good-time = <2000>;
++		nvidia,cpu-pwr-off-time = <200>;
++		nvidia,core-pwr-good-time = <3845 3845>;
++		nvidia,core-pwr-off-time = <0>;
++		nvidia,core-power-req-active-high;
++		nvidia,sys-clock-req-active-high;
++
++		core-supply = <&vdd_core>;
++
++		i2c-thermtrip {
++			nvidia,i2c-controller-id = <4>;
++			nvidia,bus-addr = <0x2d>;
++			nvidia,reg-addr = <0x3f>;
++			nvidia,reg-data = <0x80>;
++		};
++	};
++
++	hda@70030000 {
++		status = "okay";
++	};
++
++	ahub@70080000 {
++		i2s@70080400 {
++			status = "okay";
++		};
++	};
++
++	sound {
++		compatible = "nvidia,tegra-audio-wm8962";
++		nvidia,model = "microsoft-surface-rt-wm8962";
++
++		nvidia,audio-routing =
++			"Headphone Jack", "HPOUTR",
++			"Headphone Jack", "HPOUTL",
++			"Int Spk", "SPKOUTR",
++			"Int Spk", "SPKOUTL";
++
++		nvidia,i2s-controller = <&tegra_i2s1>;
++		nvidia,audio-codec = <&wm8962>;
++
++		nvidia,hp-det-gpios = <&gpio TEGRA_GPIO(W, 2) GPIO_ACTIVE_LOW>;
++
++		clocks = <&tegra_car TEGRA30_CLK_PLL_A>,
++			 <&tegra_car TEGRA30_CLK_PLL_A_OUT0>,
++			 <&tegra_pmc TEGRA_PMC_CLK_OUT_1>;
++		clock-names = "pll_a", "pll_a_out0", "mclk";
++
++		assigned-clocks = <&tegra_car TEGRA30_CLK_EXTERN1>,
++				  <&tegra_pmc TEGRA_PMC_CLK_OUT_1>;
++
++		assigned-clock-parents = <&tegra_car TEGRA30_CLK_PLL_A_OUT0>,
++					 <&tegra_car TEGRA30_CLK_EXTERN1>;
++	};
++
++	/* SD CARD - SDMMC-1 */
++	mmc@78000000 {
++		status = "okay";
++		vqmmc-supply = <&ldo5_reg>;
++		bus-width = <4>;
++		power-gpios = <&gpio TEGRA_GPIO(D, 7) GPIO_ACTIVE_HIGH>;
++		cd-gpios = <&gpio TEGRA_GPIO(I, 5) GPIO_ACTIVE_LOW>;
++		wp-gpios = <&gpio TEGRA_GPIO(T, 3) GPIO_ACTIVE_HIGH>;
++	};
++
++	/* Wifi - SDMMC-3 */
++	mmc@78000400 {
++		#address-cells = <1>;
++		#size-cells = <0>;
++
++		status = "okay";
++
++		bus-width = <4>;
++		cap-power-off-card;
++		keep-power-in-suspend;
++		max-frequency = <100000000>;
++
++		assigned-clocks = <&tegra_car TEGRA30_CLK_SDMMC3>;
++		assigned-clock-parents = <&tegra_car TEGRA30_CLK_PLL_C>;
++		assigned-clock-rates = <100000000>;
++
++		mmc-pwrseq = <&mrvl_wifi_pwrseq>;
++		vqmmc-supply = <&vqmmc_wifi_reg>;
++
++		/* Marvell 88W8797 WiFi */
++		wifi@1 {
++			compatible = "marvell,sd8897";
++			reg = <1>;
++			interrupt-parent = <&gpio>;
++			interrupts = <TEGRA_GPIO(U, 5) IRQ_TYPE_LEVEL_HIGH>;
++		};
++	};
++
++	mrvl_wifi_pwrseq: wifi-pwrseq {
++		compatible = "mmc-pwrseq-simple";
++
++		clocks = <&tegra_pmc TEGRA_PMC_CLK_BLINK>;
++		clock-names = "ext_clock";
++
++		post-power-on-delay-ms = <300>;
++		power-off-delay-us = <300>;
++	};
++
++	/* internal 32/64GB eMMC - SDMMC-4 */
++	mmc@78000600 {
++		status = "okay";
++		bus-width = <8>;
++		non-removable;
++	};
++
++	spi@7000da00 {
++		status = "okay";
++		spi-max-frequency = <25000000>;
++
++		/* Boot flash - OTP read only */
++		flash@1 {
++			compatible = "winbond,w25q32", "jedec,spi-nor";
++			reg = <1>;
++			spi-max-frequency = <20000000>;
++		};
++	};
++
++	usb@7d000000 {
++		status = "okay";
++	};
++
++	usb-phy@7d000000 {
++		vbus-supply = <&usb1_vbus_reg>;
++		status = "okay";
++	};
++
++	host1x@50000000 {
++		hdmi@54280000 {
++			status = "okay";
++			nvidia,ddc-i2c-bus = <&hdmi_ddc>;
++			nvidia,hpd-gpio = <&gpio TEGRA_GPIO(N, 7) GPIO_ACTIVE_HIGH>;
++		};
++
++		dc@54200000 {
++			rgb {
++				status = "okay";
++
++				port@0 {
++					lcd_output: endpoint {
++						remote-endpoint = <&lvds_encoder_input>;
++						bus-width = <24>;
++					};
++				};
++			};
++		};
++	};
++
++	lvds-encoder {
++		compatible = "idt,v103", "lvds-encoder";
++
++		powerdown-gpios = <&gpio TEGRA_GPIO(B, 2) GPIO_ACTIVE_LOW>;
++
++		ports {
++			#address-cells = <1>;
++			#size-cells = <0>;
++
++			port@0 {
++				reg = <0>;
++
++				lvds_encoder_input: endpoint {
++					remote-endpoint = <&lcd_output>;
++				};
++			};
++
++			port@1 {
++				reg = <1>;
++
++				lvds_encoder_output: endpoint {
++					remote-endpoint = <&panel_input>;
++				};
++			};
++		};
++	};
++
++	panel: display-panel {
++		compatible = "panel-lvds";
++
++		power-supply = <&vdd_pnl1_reg>;
++		backlight = <&backlight>;
++
++		width-mm = <235>;
++		height-mm = <132>;
++		rotation = <0>;
++
++		data-mapping = "jeida-24";
++
++		panel-timing {
++			clock-frequency = <71980000>;
++
++			hactive = <1366>;
++			vactive = <768>;
++
++			hfront-porch = <56>;
++			hsync-len = <14>;
++			hback-porch = <106>;
++
++			vfront-porch = <3>;
++			vsync-len = <1>;
++			vback-porch = <6>;
++		};
++
++		port {
++			panel_input: endpoint {
++				remote-endpoint = <&lvds_encoder_output>;
++			};
++		};
++	};
++
++	backlight: backlight {
++		compatible = "pwm-backlight";
++
++		enable-gpios = <&gpio TEGRA_GPIO(DD, 0) GPIO_ACTIVE_HIGH>;
++		power-supply = <&vdd_5v0_sys>;
++		pwms = <&pwm 0 50000>;
++
++		brightness-levels = <1 255>;
++		num-interpolated-steps = <254>;
++		default-brightness-level = <128>;
++	};
++
++	pwm@7000a000 {
++		status = "okay";
++	};
++
++	gpio-keys {
++		compatible = "gpio-keys";
++
++		label = "GPIO Buttons";
++
++		power {
++			label = "Power Button";
++			gpios = <&gpio TEGRA_GPIO(V, 0) GPIO_ACTIVE_HIGH>;
++			linux,code = <KEY_POWER>;
++			debounce-interval = <10>;
++			wakeup-source;
++		};
++
++		windows-button {
++			label = "Windows Button";
++			gpios = <&gpio TEGRA_GPIO(S, 5) GPIO_ACTIVE_HIGH>;
++			linux,code = <KEY_LEFTMETA>;
++			debounce-interval = <10>;
++			wakeup-source;
++		};
++
++		volume-down {
++			label = "Volume Down";
++			gpios = <&gpio TEGRA_GPIO(S, 6) GPIO_ACTIVE_LOW>;
++			linux,code = <KEY_VOLUMEDOWN>;
++			debounce-interval = <10>;
++		};
++
++		volume-up {
++			label = "Volume Up";
++			gpios = <&gpio TEGRA_GPIO(S, 7) GPIO_ACTIVE_LOW>;
++			linux,code = <KEY_VOLUMEUP>;
++			debounce-interval = <10>;
++		};
++	};
++
++	gpio-hall-sensor {
++		compatible = "gpio-keys";
++
++		label = "GPIO Hall Effect Sensor";
++
++		hall-sensor {
++			label = "Hall Effect Sensor";
++			gpios = <&gpio TEGRA_GPIO(L, 1) GPIO_ACTIVE_HIGH>;
++			linux,input-type = <EV_SW>;
++			linux,code = <SW_LID>;
++			linux,can-disable;
++			wakeup-source;
++		};
++	};
++
++	cpus {
++		cpu0: cpu@0 {
++			cpu-supply = <&vdd_cpu>;
++			operating-points-v2 = <&cpu0_opp_table>;
++		};
++
++		cpu1: cpu@1 {
++			cpu-supply = <&vdd_cpu>;
++			operating-points-v2 = <&cpu0_opp_table>;
++		};
++
++		cpu2: cpu@2 {
++			cpu-supply = <&vdd_cpu>;
++			operating-points-v2 = <&cpu0_opp_table>;
++		};
++
++		cpu3: cpu@3 {
++			cpu-supply = <&vdd_cpu>;
++			operating-points-v2 = <&cpu0_opp_table>;
++		};
++	};
++
++	vdd_5v0_sys: regulator-5v0 {
++		compatible = "regulator-fixed";
++		regulator-name = "vdd_5v0";
++		regulator-min-microvolt = <5000000>;
++		regulator-max-microvolt = <5000000>;
++		regulator-always-on;
++	};
++
++	vdd_1v8_sys: regulator-1v8 {
++		compatible = "regulator-fixed";
++		regulator-name = "vdd_1v8_vs";
++		regulator-min-microvolt = <1800000>;
++		regulator-max-microvolt = <1800000>;
++		regulator-always-on;
++		vin-supply = <&vdd_5v0_sys>;
++	};
++
++	usb1_vbus_reg: regulator-usb1 {
++		compatible = "regulator-fixed";
++		regulator-name = "usb1_vbus";
++		regulator-min-microvolt = <5000000>;
++		regulator-max-microvolt = <5000000>;
++		enable-active-high;
++		gpio = <&gpio TEGRA_GPIO(DD, 6) GPIO_ACTIVE_HIGH>;
++		gpio-open-drain;
++		vin-supply = <&vdd_5v0_sys>;
++	};
++
++	vqmmc_wifi_reg: vddio-wifi {
++		compatible = "regulator-fixed";
++		regulator-name = "vqmmc_wifi";
++		regulator-min-microvolt = <3300000>;
++		regulator-max-microvolt = <3300000>;
++		regulator-boot-on;
++		regulator-always-on;
++		vin-supply = <&vdd_5v0_sys>;
++	};
++
++	vdd_pnl1_reg: regulator-panel {
++		compatible = "regulator-fixed";
++		regulator-name = "vdd_pnl1";
++		regulator-min-microvolt = <3300000>;
++		regulator-max-microvolt = <3300000>;
++		regulator-boot-on;
++		regulator-always-on;
++		gpio = <&gpio TEGRA_GPIO(DD, 2) GPIO_ACTIVE_HIGH>;
++		enable-active-high;
++		vin-supply = <&vdd_5v0_sys>;
++	};
++
++	vdd_cam1_ldo_reg: regulator-cam1 {
++		compatible = "regulator-fixed";
++		regulator-name = "vdd_cam1_ldo";
++		regulator-min-microvolt = <2800000>;
++		regulator-max-microvolt = <2800000>;
++		enable-active-high;
++		gpio = <&gpio TEGRA_GPIO(R, 6) GPIO_ACTIVE_HIGH>;
++		vin-supply = <&vdd_5v0_sys>;
++	};
++
++	vdd_cam2_ldo_reg: regulator-cam2 {
++		compatible = "regulator-fixed";
++		regulator-name = "vdd_cam2_ldo";
++		regulator-min-microvolt = <2800000>;
++		regulator-max-microvolt = <2800000>;
++		enable-active-high;
++		gpio = <&gpio TEGRA_GPIO(R, 7) GPIO_ACTIVE_HIGH>;
++		vin-supply = <&vdd_5v0_sys>;
++	};
++
++	regulator-sensors {
++		compatible = "regulator-fixed";
++		regulator-name = "vdd_sensor_hub";
++		regulator-min-microvolt = <2800000>;
++		regulator-max-microvolt = <2800000>;
++		enable-active-high;
++		regulator-boot-on;
++		regulator-always-on;
++		gpio = <&gpio TEGRA_GPIO(N, 0) GPIO_ACTIVE_HIGH>;
++		vin-supply = <&vdd_5v0_sys>;
++	};
++};
+-- 
+2.55.0
+

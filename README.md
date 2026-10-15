@@ -3,8 +3,9 @@
 A [Nerves](https://nerves-project.org/) system for the original Microsoft
 Surface RT (2012, NVIDIA Tegra 3).
 
-> **Status:** planning. Nothing builds yet. As far as we know, nobody has
-> run Nerves on a Surface RT before.
+> **Status:** early skeleton. The system configuration and kernel device
+> tree patch are written but haven't been built or booted yet. As far as we
+> know, nobody has run Nerves on a Surface RT before.
 
 ## Hardware
 
@@ -15,7 +16,7 @@ Surface RT (2012, NVIDIA Tegra 3).
 | Storage   | 32/64 GB internal eMMC, microSD slot                           |
 | Wi-Fi/BT  | Marvell 88W8797 (SDIO, Linux driver `mwifiex_sdio`)            |
 | USB       | 1× USB 2.0 Type-A, host only (no gadget/OTG)                   |
-| Input     | Touchscreen, Touch/Type Cover keyboard                         |
+| Input     | Touchscreen (Atmel maXTouch, HID over I2C), Touch/Type Cover   |
 | Firmware  | UEFI with Secure Boot locked on (must be jailbroken, see below) |
 
 This targets the **Surface RT** only. The Surface 2 uses a Tegra 4 and
@@ -124,13 +125,12 @@ jailbreak USB page.
    using an existing ARMv7 system as a template. The Cortex-A9 works with the
    existing `nerves_toolchain_armv7_nerves_linux_gnueabihf` toolchain.
 2. **Kernel and device tree.** The Surface RT device tree is **not** in
-   mainline Linux. Other Tegra 3 tablets are, e.g. `tegra30-asus-tf600t`
-   (VivoTab RT). Take the Surface RT `.dts` from the Open Surface RT /
-   grate-driver community kernels. Required kernel config:
-   - Tegra 3 DRM/display
-   - SDHCI for the eMMC and microSD
-   - `mwifiex_sdio`, plus `mrvl/sd8797_uapsta.bin` from linux-firmware
-   - Touch/Type Cover keyboard and touchscreen drivers
+   mainline Linux. This system builds Linux 6.18.36 with a patch that adds
+   it, ported from the Open Surface RT community kernel. See
+   [`dts/README.md`](dts/README.md) for the source, the changes and the
+   known limitations (no cover keyboard, 1 GB RAM, no battery status or
+   audio yet). The kernel config is `tegra_defconfig` plus
+   [`linux/surface-rt.fragment`](linux/surface-rt.fragment).
 3. **Bootloader.** After Yahallo, UEFI boots EFI binaries directly. Use
    **GRUB (arm-efi)** for A/B switching, following the GRUB + grubenv pattern
    in [`nerves_system_x86_64`](https://github.com/nerves-project/nerves_system_x86_64).
@@ -150,8 +150,11 @@ jailbreak USB page.
 - [ ] Boot an existing community Surface RT Linux image to confirm the
       kernel, device tree and boot path work
 - [ ] Build a minimal Buildroot defconfig that boots from microSD through GRUB
-- [ ] Wrap it as a Nerves system with `nerves_system_br`
-- [ ] Add a `fwup` config with A/B updates
+- [x] Nerves system skeleton with `nerves_system_br`, GRUB (arm-efi) and a
+      `fwup` config with A/B updates (fwup configs tested with placeholder
+      files; full build not run yet)
+- [x] Surface RT device tree ported to Linux 6.18 (compiles with `dtc`)
+- [ ] Full system build (`mix compile`)
 - [ ] Wi-Fi with VintageNet and SSH access
 - [ ] Display output
 - [ ] Install to eMMC

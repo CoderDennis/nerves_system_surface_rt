@@ -1,10 +1,14 @@
 # Kernel config fragment for the Microsoft Surface RT
 #
 # Applied on top of the kernel's tegra_defconfig. See nerves_defconfig.
+# Drivers that tegra_defconfig already enables aren't repeated here:
+# Tegra DRM, LVDS codec and panel, PWM backlight, Tegra I2C and SDHCI,
+# TPS65911 PMIC (MFD, regulators, RTC), TPS62361 regulator, NCT1008
+# temperature sensor (LM90), GPIO keys and ChipIdea USB host.
 #
-# TODO: This is a starting point that hasn't been built or booted yet. Once
-# the system boots, replace tegra_defconfig + this fragment with a full
-# linux-<version>.defconfig like the other Nerves systems use.
+# TODO: This hasn't been built or booted yet. Once the system boots, replace
+# tegra_defconfig + this fragment with a full linux-<version>.defconfig like
+# the other Nerves systems use.
 
 # UEFI boot: GRUB (arm-efi) loads zImage through the EFI stub
 CONFIG_EFI=y
@@ -22,18 +26,7 @@ CONFIG_VFAT_FS=y
 CONFIG_NLS_CODEPAGE_437=y
 CONFIG_NLS_ISO8859_1=y
 
-# Internal eMMC and microSD (Tegra SDHCI)
-CONFIG_MMC=y
-CONFIG_MMC_BLOCK=y
-CONFIG_MMC_SDHCI=y
-CONFIG_MMC_SDHCI_PLTFM=y
-CONFIG_MMC_SDHCI_TEGRA=y
-
-# USB host, USB storage and USB Ethernet adapters for development
-CONFIG_USB=y
-CONFIG_USB_EHCI_HCD=y
-CONFIG_USB_EHCI_TEGRA=y
-CONFIG_USB_STORAGE=y
+# USB Ethernet adapters for development (the Surface RT has no Ethernet)
 CONFIG_USB_NET_DRIVERS=y
 CONFIG_USB_USBNET=y
 CONFIG_USB_NET_CDCETHER=y
@@ -41,21 +34,25 @@ CONFIG_USB_NET_AX8817X=y
 CONFIG_USB_NET_AX88179_178A=y
 CONFIG_USB_RTL8152=y
 
-# Wi-Fi: Marvell 88W8797 on SDIO. The firmware comes from
-# BR2_PACKAGE_LINUX_FIRMWARE_MWIFIEX_SD8797.
+# Wi-Fi: Marvell 88W8797 on SDIO, powered through an mmc-pwrseq-simple node.
+# The firmware comes from BR2_PACKAGE_LINUX_FIRMWARE_MWIFIEX_SD8797.
+# Built in rather than as modules (tegra_defconfig has =m).
 CONFIG_CFG80211=y
 CONFIG_MWIFIEX=y
 CONFIG_MWIFIEX_SDIO=y
+CONFIG_PWRSEQ_SIMPLE=y
 
-# Display and console on the built-in screen
-CONFIG_DRM=y
-CONFIG_DRM_TEGRA=y
+# Console on the built-in screen
 CONFIG_DRM_FBDEV_EMULATION=y
 CONFIG_FRAMEBUFFER_CONSOLE=y
 
-# Input: touchscreen and Touch/Type Cover
-# TODO: Confirm the exact devices against the Surface RT device tree.
-CONFIG_INPUT_TOUCHSCREEN=y
-CONFIG_TOUCHSCREEN_ATMEL_MXT=y
+# Touchscreen (Atmel maXTouch) and sensor hub, both HID over I2C
+CONFIG_HID=y
+CONFIG_I2C_HID_CORE=y
+CONFIG_I2C_HID_OF=y
 CONFIG_HID_MULTITOUCH=y
-CONFIG_HID_MICROSOFT=y
+CONFIG_HID_SENSOR_HUB=y
+
+# Not available in Linux 6.18 (added to mainline later):
+# - CONFIG_BATTERY_CHARGER_SURFACE_RT (battery and charger)
+# - CONFIG_SND_SOC_TEGRA_WM8962 (audio)
