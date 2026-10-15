@@ -3,8 +3,8 @@
 A [Nerves](https://nerves-project.org/) system for the original Microsoft
 Surface RT (2012, NVIDIA Tegra 3).
 
-> **Status:** early skeleton. The system configuration and kernel device
-> tree patch are written but haven't been built or booted yet. As far as we
+> **Status:** the system builds, but hasn't been booted on a Surface RT
+> yet. As far as we
 > know, nobody has run Nerves on a Surface RT before.
 
 ## Hardware
@@ -144,6 +144,26 @@ jailbreak USB page.
 6. **Display (optional).** Nerves runs headless by default. Options are a
    framebuffer console, Scenic on DRM, or a kiosk browser (heavier).
 
+### Building
+
+The system uses `nerves_system_br` 1.35.0, which builds Erlang/OTP 29 for
+the target. The host's OTP major version must match, so this repo pins
+Erlang 29.1.1 and Elixir 1.20.4-otp-29 in `.tool-versions`.
+
+```sh
+mix archive.install hex nerves_bootstrap
+mix deps.get
+mix compile        # on macOS, Buildroot runs in Docker (Docker must be running)
+```
+
+If your shell doesn't switch versions automatically, prefix the commands
+with `mise exec --` (or the `asdf` equivalent).
+
+Nerves writes the Buildroot output to `build.log` in this directory. Don't
+redirect `mix compile` to that same file, or the two outputs overwrite
+each other. The built system ends up in
+`~/.nerves/artifacts/nerves_system_surface_rt-portable-<version>/`.
+
 ### Plan
 
 - [ ] Finish the jailbreak (Golden Keys, then Yahallo)
@@ -154,7 +174,8 @@ jailbreak USB page.
       `fwup` config with A/B updates (fwup configs tested with placeholder
       files; full build not run yet)
 - [x] Surface RT device tree ported to Linux 6.18 (compiles with `dtc`)
-- [ ] Full system build (`mix compile`)
+- [x] Full system build (`mix compile`): kernel with EFI stub, Surface RT
+      DTB, GRUB `bootarm.efi`, rootfs and a firmware image all build
 - [ ] Wi-Fi with VintageNet and SSH access
 - [ ] Display output
 - [ ] Install to eMMC

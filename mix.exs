@@ -10,8 +10,9 @@ defmodule NervesSystemSurfaceRt.MixProject do
     [
       app: @app,
       version: @version,
-      # Because we're using OTP 27, we need to enforce Elixir 1.17 or later.
-      elixir: "~> 1.17",
+      # nerves_system_br 1.35.0 builds OTP 29 for the target, and the host's
+      # OTP major version must match (see .tool-versions).
+      elixir: "~> 1.20",
       compilers: Mix.compilers() ++ [:nerves_package],
       nerves_package: nerves_package(),
       description: description(),
