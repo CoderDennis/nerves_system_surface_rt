@@ -1,0 +1,61 @@
+# Kernel config fragment for the Microsoft Surface RT
+#
+# Applied on top of the kernel's tegra_defconfig. See nerves_defconfig.
+#
+# TODO: This is a starting point that hasn't been built or booted yet. Once
+# the system boots, replace tegra_defconfig + this fragment with a full
+# linux-<version>.defconfig like the other Nerves systems use.
+
+# UEFI boot: GRUB (arm-efi) loads zImage through the EFI stub
+CONFIG_EFI=y
+CONFIG_EFI_STUB=y
+
+# Nerves root filesystem, boot partition and application partition
+CONFIG_DEVTMPFS=y
+CONFIG_DEVTMPFS_MOUNT=y
+CONFIG_SQUASHFS=y
+CONFIG_SQUASHFS_XZ=y
+CONFIG_SQUASHFS_ZSTD=y
+CONFIG_SQUASHFS_LZ4=y
+CONFIG_EXT4_FS=y
+CONFIG_VFAT_FS=y
+CONFIG_NLS_CODEPAGE_437=y
+CONFIG_NLS_ISO8859_1=y
+
+# Internal eMMC and microSD (Tegra SDHCI)
+CONFIG_MMC=y
+CONFIG_MMC_BLOCK=y
+CONFIG_MMC_SDHCI=y
+CONFIG_MMC_SDHCI_PLTFM=y
+CONFIG_MMC_SDHCI_TEGRA=y
+
+# USB host, USB storage and USB Ethernet adapters for development
+CONFIG_USB=y
+CONFIG_USB_EHCI_HCD=y
+CONFIG_USB_EHCI_TEGRA=y
+CONFIG_USB_STORAGE=y
+CONFIG_USB_NET_DRIVERS=y
+CONFIG_USB_USBNET=y
+CONFIG_USB_NET_CDCETHER=y
+CONFIG_USB_NET_AX8817X=y
+CONFIG_USB_NET_AX88179_178A=y
+CONFIG_USB_RTL8152=y
+
+# Wi-Fi: Marvell 88W8797 on SDIO. The firmware comes from
+# BR2_PACKAGE_LINUX_FIRMWARE_MWIFIEX_SD8797.
+CONFIG_CFG80211=y
+CONFIG_MWIFIEX=y
+CONFIG_MWIFIEX_SDIO=y
+
+# Display and console on the built-in screen
+CONFIG_DRM=y
+CONFIG_DRM_TEGRA=y
+CONFIG_DRM_FBDEV_EMULATION=y
+CONFIG_FRAMEBUFFER_CONSOLE=y
+
+# Input: touchscreen and Touch/Type Cover
+# TODO: Confirm the exact devices against the Surface RT device tree.
+CONFIG_INPUT_TOUCHSCREEN=y
+CONFIG_TOUCHSCREEN_ATMEL_MXT=y
+CONFIG_HID_MULTITOUCH=y
+CONFIG_HID_MICROSOFT=y
