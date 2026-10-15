@@ -148,7 +148,7 @@ jailbreak USB page.
 
 The system uses `nerves_system_br` 1.35.0, which builds Erlang/OTP 29 for
 the target. The host's OTP major version must match, so this repo pins
-Erlang 29.1.1 and Elixir 1.20.4-otp-29 in `.tool-versions`.
+Erlang 29.1.2 and Elixir 1.20.4-otp-29 in `.tool-versions`.
 
 ```sh
 mix archive.install hex nerves_bootstrap
