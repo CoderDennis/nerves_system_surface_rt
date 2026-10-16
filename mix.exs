@@ -111,6 +111,7 @@ defmodule NervesSystemSurfaceRt.MixProject do
       "post-build.sh",
       "post-createfs.sh",
       "README.md",
+      "REUSE.toml",
       "VERSION"
     ]
   end

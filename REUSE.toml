@@ -1,0 +1,67 @@
+version = 1
+
+[[annotations]]
+path = [
+ ".formatter.exs",
+ ".gitignore",
+ ".tool-versions",
+ "CHANGELOG.md",
+ "REUSE.toml",
+ "mix.exs",
+ "mix.lock",
+ "VERSION"
+]
+precedence = "aggregate"
+SPDX-FileCopyrightText = "None"
+SPDX-License-Identifier = "CC0-1.0"
+
+[[annotations]]
+path = [
+ "README.md",
+ "dts/README.md"
+]
+precedence = "aggregate"
+SPDX-FileCopyrightText = "2026 Dennis Palmer"
+SPDX-License-Identifier = "CC-BY-4.0"
+
+# Buildroot derived or related files
+[[annotations]]
+path = [
+ "Config.in",
+ "nerves_defconfig",
+ "post-build.sh",
+ "post-createfs.sh"
+]
+precedence = "aggregate"
+SPDX-FileCopyrightText = "The Buildroot developers <buildroot@buildroot.org>"
+SPDX-License-Identifier = "GPL-2.0-or-later"
+
+# Linux kernel derived or related files
+[[annotations]]
+path = [
+ "linux/*"
+]
+precedence = "override"
+SPDX-FileCopyrightText = "Various"
+SPDX-License-Identifier = "GPL-2.0-only"
+
+# Fwup config files
+[[annotations]]
+path = [
+ "fwup-ops.conf",
+ "fwup.conf",
+ "fwup_include/*"
+]
+precedence = "aggregate"
+SPDX-FileCopyrightText = "None"
+SPDX-License-Identifier = "CC0-1.0"
+
+# Various config files
+[[annotations]]
+path = [
+ "grub.cfg",
+ "rootfs_overlay/**"
+]
+precedence = "aggregate"
+SPDX-FileCopyrightText = "None"
+SPDX-License-Identifier = "CC0-1.0"

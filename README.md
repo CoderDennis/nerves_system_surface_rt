@@ -188,3 +188,20 @@ each other. The built system ends up in
   an example port to new hardware
 - [U-Boot docs: Surface RT](https://docs.u-boot.org/en/latest/board/microsoft/surface-rt.html)
 - [Linux Tegra device trees](https://github.com/torvalds/linux/tree/master/arch/arm/boot/dts/nvidia)
+
+## License
+
+This project follows the [REUSE](https://reuse.software/) specification.
+`REUSE.toml` maps each file to its license, and the license texts are in
+`LICENSES/`. Like the official Nerves systems:
+
+| Files | License |
+|---|---|
+| `linux/` (kernel config fragment and Surface RT device tree patch) | GPL-2.0-only |
+| `Config.in`, `nerves_defconfig`, `post-build.sh`, `post-createfs.sh` (Buildroot derived) | GPL-2.0-or-later |
+| `fwup.conf`, `fwup-ops.conf`, `fwup_include/`, `grub.cfg`, `rootfs_overlay/`, `mix.exs` and other small config files | CC0-1.0 |
+| `README.md`, `dts/README.md` | CC-BY-4.0 |
+
+The device tree comes from the
+[Open Surface RT](https://open-rt.gitbook.io/open-surfacert/) community kernel
+and keeps its upstream SPDX headers.
