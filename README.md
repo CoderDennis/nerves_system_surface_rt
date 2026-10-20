@@ -166,7 +166,7 @@ each other. The built system ends up in
 
 ### Plan
 
-- [ ] Finish the jailbreak (Golden Keys, then Yahallo)
+- [x] Finish the jailbreak (Golden Keys, then Yahallo)
 - [ ] Boot an existing community Surface RT Linux image to confirm the
       kernel, device tree and boot path work
 - [ ] Build a minimal Buildroot defconfig that boots from microSD through GRUB
