@@ -167,7 +167,7 @@ each other. The built system ends up in
 ### Plan
 
 - [x] Finish the jailbreak (Golden Keys, then Yahallo)
-- [ ] Boot an existing community Surface RT Linux image to confirm the
+- [x] Boot an existing community Surface RT Linux image to confirm the
       kernel, device tree and boot path work
 - [ ] Build a minimal Buildroot defconfig that boots from microSD through GRUB
 - [x] Nerves system skeleton with `nerves_system_br`, GRUB (arm-efi) and a
