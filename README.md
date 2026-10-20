@@ -181,7 +181,7 @@ each other. The built system ends up in
       Shell on a USB stick, root filesystem on microSD)
 - [ ] Boot through GRUB. The UEFI firmware can't see the microSD slot, so
       the boot partition has to be on USB or the eMMC.
-- [ ] Wi-Fi with VintageNet and SSH access (the interface is `mlan0`)
+- [x] Wi-Fi with VintageNet and SSH access (the interface is `mlan0`)
 - [x] Display output (Tegra DRM console on the built-in screen)
 - [ ] Install to eMMC
 

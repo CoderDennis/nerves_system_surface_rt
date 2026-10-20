@@ -6,9 +6,8 @@
 # TPS65911 PMIC (MFD, regulators, RTC), TPS62361 regulator, NCT1008
 # temperature sensor (LM90), GPIO keys and ChipIdea USB host.
 #
-# TODO: This hasn't been built or booted yet. Once the system boots, replace
-# tegra_defconfig + this fragment with a full linux-<version>.defconfig like
-# the other Nerves systems use.
+# TODO: Replace tegra_defconfig + this fragment with a full
+# linux-<version>.defconfig like the other Nerves systems use.
 
 # UEFI boot: GRUB (arm-efi) loads zImage through the EFI stub
 CONFIG_EFI=y
@@ -26,6 +25,12 @@ CONFIG_VFAT_FS=y
 CONFIG_NLS_CODEPAGE_437=y
 CONFIG_NLS_ISO8859_1=y
 
+# VintageNet's RouteManager adds an "ip rule" and a routing table per
+# interface. Without these, it fails with "Address family not supported by
+# protocol" and the interface never stays connected.
+CONFIG_IP_ADVANCED_ROUTER=y
+CONFIG_IP_MULTIPLE_TABLES=y
+
 # USB Ethernet adapters for development (the Surface RT has no Ethernet)
 CONFIG_USB_NET_DRIVERS=y
 CONFIG_USB_USBNET=y
@@ -35,11 +40,14 @@ CONFIG_USB_NET_AX88179_178A=y
 CONFIG_USB_RTL8152=y
 
 # Wi-Fi: Marvell 88W8797 on SDIO, powered through an mmc-pwrseq-simple node.
-# The firmware comes from BR2_PACKAGE_LINUX_FIRMWARE_MWIFIEX_SD8797.
-# Built in rather than as modules (tegra_defconfig has =m).
-CONFIG_CFG80211=y
-CONFIG_MWIFIEX=y
-CONFIG_MWIFIEX_SDIO=y
+# The firmware comes from BR2_PACKAGE_LINUX_FIRMWARE_MWIFIEX_SD8797, and
+# regulatory.db from BR2_PACKAGE_WIRELESS_REGDB. These are modules so that
+# they load after the root filesystem is mounted. Built in, mwifiex asks
+# for its firmware about 4 seconds into the boot, before the rootfs is
+# there, and the interface never appears.
+CONFIG_CFG80211=m
+CONFIG_MWIFIEX=m
+CONFIG_MWIFIEX_SDIO=m
 CONFIG_PWRSEQ_SIMPLE=y
 
 # Console on the built-in screen. efifb shows boot messages on the UEFI
