@@ -3,9 +3,10 @@
 A [Nerves](https://nerves-project.org/) system for the original Microsoft
 Surface RT (2012, NVIDIA Tegra 3).
 
-> **Status:** the system builds, but hasn't been booted on a Surface RT
-> yet. As far as we
-> know, nobody has run Nerves on a Surface RT before.
+> **Status:** Nerves boots to an IEx prompt on the Surface RT screen, with
+> a USB keyboard. So far it has only been booted from the Open Surface RT
+> UEFI Shell, not through GRUB, and with the root filesystem on microSD.
+> As far as we know, nobody has run Nerves on a Surface RT before.
 
 ## Hardware
 
@@ -176,8 +177,12 @@ each other. The built system ends up in
 - [x] Surface RT device tree ported to Linux 6.18 (compiles with `dtc`)
 - [x] Full system build (`mix compile`): kernel with EFI stub, Surface RT
       DTB, GRUB `bootarm.efi`, rootfs and a firmware image all build
-- [ ] Wi-Fi with VintageNet and SSH access
-- [ ] Display output
+- [x] Boot Nerves to an IEx prompt (kernel and DTB loaded from the UEFI
+      Shell on a USB stick, root filesystem on microSD)
+- [ ] Boot through GRUB. The UEFI firmware can't see the microSD slot, so
+      the boot partition has to be on USB or the eMMC.
+- [ ] Wi-Fi with VintageNet and SSH access (the interface is `mlan0`)
+- [x] Display output (Tegra DRM console on the built-in screen)
 - [ ] Install to eMMC
 
 ### Nerves references

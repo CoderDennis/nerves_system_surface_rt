@@ -47,13 +47,15 @@ gives the same 5.
   Open Surface RT Raspberry Pi OS image (kernel `6.4.0-rc6-next-20230616`)
   turns the L2 cache on through a `trusted-foundations` node with a
   `tlm,microsoft-surface-rt` property, which needs community kernel code.
+- **One CPU core.** The other three fail to come online. They also need
+  the community trusted-foundations support.
+- **No battery status or audio.** The drivers for these were added to
+  mainline after 6.18.
 
 The device tree declares 1 GB of RAM because 2 GB "doesn't work atm",
 according to its comment. That doesn't matter when booting through UEFI:
 the kernel takes its memory map from UEFI, not the device tree. The
 Raspberry Pi OS image uses the same 1 GB device tree and sees all 2 GB.
-- **No battery status or audio.** The drivers for these were added to
-  mainline after 6.18.
 
 ## TODO
 
