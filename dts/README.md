@@ -28,6 +28,13 @@ thermal zones, L2 cache and working PMIC/DVFS. Its `-efi.dts` is incomplete
   `i2c-hotplug-gpio` driver, which isn't in mainline.
 - The `-efi` variant defines the `vdd_pd_core_stub` regulator itself, since
   mainline `tegra30.dtsi` doesn't have it.
+- The `-efi` variant drops the memory controller resets from the `td2`
+  (3D2), `vdec` and `venc` powergates. UEFI leaves them powered off, and
+  at probe the PMC driver asserts their resets, which first flushes their
+  memory clients. On the unpowered hardware that flush times out
+  (`failed to flush 3D2 DMA`), the PMC probe fails with `-EBUSY`, and the
+  SD card, USB, Wi-Fi and backlight never probe. Only `td2` has been seen
+  to fail. `vdec` and `venc` are changed the same way to be safe.
 
 Both files compile with `dtc` against Linux 6.18.36. The 5 warnings come
 from the shared Tegra 3 `.dtsi` files; mainline's `tegra30-asus-tf700t`

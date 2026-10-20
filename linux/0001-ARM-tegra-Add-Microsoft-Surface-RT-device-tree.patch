@@ -1,4 +1,4 @@
-From 563cb3934fcfdf81111ee96dd253403a27d81d44 Mon Sep 17 00:00:00 2001
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: Dennis Palmer <dodava@gmail.com>
 Date: Thu, 15 Oct 2026 17:00:11 +0200
 Subject: [PATCH] ARM: tegra: Add Microsoft Surface RT device tree
@@ -13,15 +13,18 @@ branch, commit 25a5100, Feb 2022) and adapted to mainline:
   i2c-hotplug-gpio driver.
 - Define the core voltage stub regulator in the -efi variant, since
   mainline tegra30.dtsi doesn't have one.
+- Drop the memory controller resets from the 3D2, VDE and VENC
+  powergates in the -efi variant. UEFI leaves them powered off, the
+  memory client flush times out, and the PMC probe fails with -EBUSY.
 
 The -efi variant is for booting through the UEFI firmware after the
 Yahallo jailbreak. It disables the PMIC core regulator, CPU DVFS, the
 L2 cache and CPU idle, which don't work there.
 ---
  arch/arm/boot/dts/nvidia/Makefile             |   2 +
- .../tegra30-microsoft-surface-rt-efi.dts      |  75 ++
+ .../tegra30-microsoft-surface-rt-efi.dts      |  96 +++
  .../nvidia/tegra30-microsoft-surface-rt.dts   | 650 ++++++++++++++++++
- 3 files changed, 727 insertions(+)
+ 3 files changed, 748 insertions(+)
  create mode 100644 arch/arm/boot/dts/nvidia/tegra30-microsoft-surface-rt-efi.dts
  create mode 100644 arch/arm/boot/dts/nvidia/tegra30-microsoft-surface-rt.dts
 
@@ -39,10 +42,10 @@ index 2ed2d923c..82a94a220 100644
  	tegra30-pegatron-chagall.dtb
 diff --git a/arch/arm/boot/dts/nvidia/tegra30-microsoft-surface-rt-efi.dts b/arch/arm/boot/dts/nvidia/tegra30-microsoft-surface-rt-efi.dts
 new file mode 100644
-index 000000000..4a5acf553
+index 000000000..c614d906d
 --- /dev/null
 +++ b/arch/arm/boot/dts/nvidia/tegra30-microsoft-surface-rt-efi.dts
-@@ -0,0 +1,75 @@
+@@ -0,0 +1,96 @@
 +// SPDX-License-Identifier: GPL-2.0-only
 +
 +#include "tegra30-microsoft-surface-rt.dts"
@@ -117,6 +120,27 @@ index 000000000..4a5acf553
 +
 +&pmic {
 +	/delete-node/ regulators;
++};
++
++/*
++ * UEFI leaves these partitions powered off. The PMC driver asserts their
++ * resets at probe, which first flushes their memory clients. That flush
++ * times out on the unpowered hardware ("failed to flush 3D2 DMA"), and
++ * the whole PMC probe fails with -EBUSY. Without the PMC, the SD card,
++ * USB and Wi-Fi never probe. Keep only the clock resets.
++ */
++&pd_3d1 {
++	resets = <&tegra_car TEGRA30_CLK_GR3D2>;
++};
++
++&pd_vde {
++	resets = <&tegra_car TEGRA30_CLK_VDE>;
++};
++
++&pd_venc {
++	resets = <&tegra_car TEGRA30_CLK_ISP>,
++		 <&tegra_car 20 /* VI */>,
++		 <&tegra_car TEGRA30_CLK_CSI>;
 +};
 diff --git a/arch/arm/boot/dts/nvidia/tegra30-microsoft-surface-rt.dts b/arch/arm/boot/dts/nvidia/tegra30-microsoft-surface-rt.dts
 new file mode 100644
