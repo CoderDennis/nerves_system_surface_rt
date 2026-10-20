@@ -36,9 +36,15 @@ gives the same 5.
 ## Known limitations
 
 - **No Touch/Type Cover.** Use a USB keyboard.
-- **1 GB of RAM.** The device tree declares 1 GB because 2 GB "doesn't work
-  atm", according to its comment.
-- **One CPU speed, no L2 cache.** Disabled in the `-efi` variant.
+- **One CPU speed, no L2 cache.** Disabled in the `-efi` variant. The
+  Open Surface RT Raspberry Pi OS image (kernel `6.4.0-rc6-next-20230616`)
+  turns the L2 cache on through a `trusted-foundations` node with a
+  `tlm,microsoft-surface-rt` property, which needs community kernel code.
+
+The device tree declares 1 GB of RAM because 2 GB "doesn't work atm",
+according to its comment. That doesn't matter when booting through UEFI:
+the kernel takes its memory map from UEFI, not the device tree. The
+Raspberry Pi OS image uses the same 1 GB device tree and sees all 2 GB.
 - **No battery status or audio.** The drivers for these were added to
   mainline after 6.18.
 

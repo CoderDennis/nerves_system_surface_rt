@@ -42,7 +42,11 @@ CONFIG_MWIFIEX=y
 CONFIG_MWIFIEX_SDIO=y
 CONFIG_PWRSEQ_SIMPLE=y
 
-# Console on the built-in screen
+# Console on the built-in screen. efifb shows boot messages on the UEFI
+# framebuffer until Tegra DRM takes over.
+CONFIG_FB=y
+CONFIG_FB_EFI=y
+CONFIG_SYSFB=y
 CONFIG_DRM_FBDEV_EMULATION=y
 CONFIG_FRAMEBUFFER_CONSOLE=y
 

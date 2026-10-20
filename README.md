@@ -128,7 +128,7 @@ jailbreak USB page.
    mainline Linux. This system builds Linux 6.18.36 with a patch that adds
    it, ported from the Open Surface RT community kernel. See
    [`dts/README.md`](dts/README.md) for the source, the changes and the
-   known limitations (no cover keyboard, 1 GB RAM, no battery status or
+   known limitations (no cover keyboard, no L2 cache, no battery status or
    audio yet). The kernel config is `tegra_defconfig` plus
    [`linux/surface-rt.fragment`](linux/surface-rt.fragment).
 3. **Bootloader.** After Yahallo, UEFI boots EFI binaries directly. Use
