@@ -147,9 +147,14 @@ jailbreak USB page.
 
 ### Building
 
-The system uses `nerves_system_br` 1.35.0, which builds Erlang/OTP 29 for
-the target. The host's OTP major version must match, so this repo pins
+The system uses `nerves_system_br` 1.35.2, which builds Erlang/OTP 29.1.2
+for the target. The host's OTP major version must match, so this repo pins
 Erlang 29.1.2 and Elixir 1.20.4-otp-29 in `.tool-versions`.
+
+Don't go below OTP 29.1.1 on the target. Its SSH daemon (ssh 6.0.5)
+rejects subsystem requests that follow an `env` request, and macOS's ssh
+sends `LANG` and `LC_*` by default, so `mix upload` and `sftp` fail with
+"subsystem request failed on channel 0".
 
 ```sh
 mix archive.install hex nerves_bootstrap
