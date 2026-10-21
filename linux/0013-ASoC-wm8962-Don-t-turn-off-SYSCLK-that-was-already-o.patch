@@ -1,0 +1,61 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Dennis Palmer <dodava@gmail.com>
+Date: Wed, 21 Oct 2026 17:28:37 +0200
+Subject: [PATCH] ASoC: wm8962: Don't turn off SYSCLK that was already on
+
+wm8962_configure_bclk() turns SYSCLK on to read back DSPCLK_DIV and off
+again afterwards when the bias level isn't SND_SOC_BIAS_ON, assuming that
+SYSCLK must have been off. But SYSCLK can be on below SND_SOC_BIAS_ON:
+supply widgets only bring the context up to STANDBY, and
+wm8962_mic_detect() force-enables the SYSCLK widget. At hw_params time
+the provisional sequence then clears SYSCLK_ENA, while DAPM still
+considers the widget powered and never sets it again. Playback runs
+with SYSCLK stopped: the DC servo times out ("DC servo timed out") and
+nothing comes out of the speakers or headphones.
+
+Seen on the Microsoft Surface RT, whose Tegra machine driver uses
+wm8962_mic_detect(). Only turn SYSCLK on and off again if it was off.
+---
+ sound/soc/codecs/wm8962.c | 11 ++++++++---
+ 1 file changed, 8 insertions(+), 3 deletions(-)
+
+diff --git a/sound/soc/codecs/wm8962.c b/sound/soc/codecs/wm8962.c
+index ab8247ae431f..7e6c4c952e35 100644
+--- a/sound/soc/codecs/wm8962.c
++++ b/sound/soc/codecs/wm8962.c
+@@ -2474,6 +2474,7 @@ static void wm8962_configure_bclk(struct snd_soc_component *component)
+ 	int clocking2 = 0;
+ 	int clocking4 = 0;
+ 	int aif2 = 0;
++	bool sysclk_off;
+ 
+ 	if (!wm8962->sysclk_rate) {
+ 		dev_dbg(component->dev, "No SYSCLK configured\n");
+@@ -2505,9 +2506,13 @@ static void wm8962_configure_bclk(struct snd_soc_component *component)
+ 
+ 	/* DSPCLK_DIV can be only generated correctly after enabling SYSCLK.
+ 	 * So we here provisionally enable it and then disable it afterward
+-	 * if current bias_level hasn't reached SND_SOC_BIAS_ON.
++	 * if it was off. Checking the bias level isn't enough: SYSCLK can be
++	 * on below SND_SOC_BIAS_ON, e.g. when microphone detection forces it,
++	 * and turning it off then would leave it off behind DAPM's back.
+ 	 */
+-	if (snd_soc_component_get_bias_level(component) != SND_SOC_BIAS_ON)
++	sysclk_off = !(snd_soc_component_read(component, WM8962_CLOCKING2) &
++		       WM8962_SYSCLK_ENA);
++	if (sysclk_off)
+ 		snd_soc_component_update_bits(component, WM8962_CLOCKING2,
+ 				WM8962_SYSCLK_ENA_MASK, WM8962_SYSCLK_ENA);
+ 
+@@ -2521,7 +2526,7 @@ static void wm8962_configure_bclk(struct snd_soc_component *component)
+ 	usleep_range(500, 1000);
+ 	dspclk = snd_soc_component_read(component, WM8962_CLOCKING1);
+ 
+-	if (snd_soc_component_get_bias_level(component) != SND_SOC_BIAS_ON)
++	if (sysclk_off)
+ 		snd_soc_component_update_bits(component, WM8962_CLOCKING2,
+ 				WM8962_SYSCLK_ENA_MASK, 0);
+ 
+-- 
+2.55.0
+
