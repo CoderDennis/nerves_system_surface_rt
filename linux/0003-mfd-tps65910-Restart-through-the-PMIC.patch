@@ -1,0 +1,70 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Dennis Palmer <dodava@gmail.com>
+Date: Wed, 21 Oct 2026 13:28:55 +0200
+Subject: [PATCH] mfd: tps65910: Restart through the PMIC
+
+On the Microsoft Surface RT, booted through UEFI, the Tegra PMC's main
+reset leaves the device powered off instead of restarting it. Register
+a restart handler that power-cycles the system by setting DEV_OFF_RST in
+the PMIC's DEVCTRL register, and give it a higher priority than the
+PMC's.
+
+The Open Surface RT community kernel (grate-linux) restarts the same way.
+
+---
+ drivers/mfd/tps65910.c | 29 +++++++++++++++++++++++++++++
+ 1 file changed, 29 insertions(+)
+
+diff --git a/drivers/mfd/tps65910.c b/drivers/mfd/tps65910.c
+--- a/drivers/mfd/tps65910.c
++++ b/drivers/mfd/tps65910.c
+@@ -20,6 +20,7 @@
+ #include <linux/mfd/tps65910.h>
+ #include <linux/of.h>
+ #include <linux/property.h>
++#include <linux/reboot.h>
+ 
+ static const struct resource rtc_resources[] = {
+ 	{
+@@ -432,6 +433,17 @@
+ 	regmap_update_bits(tps65910->regmap, TPS65910_DEVCTRL,
+ 			   DEVCTRL_DEV_OFF_MASK | DEVCTRL_DEV_ON_MASK,
+ 			   DEVCTRL_DEV_OFF_MASK);
++}
++
++static int tps65910_restart_handler(struct sys_off_data *data)
++{
++	struct tps65910 *tps65910 = data->cb_data;
++
++	regmap_update_bits(tps65910->regmap, TPS65910_DEVCTRL,
++			   DEVCTRL_DEV_OFF_RST_MASK | DEVCTRL_DEV_ON_MASK,
++			   DEVCTRL_DEV_OFF_RST_MASK);
++
++	return NOTIFY_DONE;
+ }
+ 
+ static int tps65910_i2c_probe(struct i2c_client *i2c)
+@@ -503,6 +515,23 @@
+ 
+ 		tps65910_i2c_client = i2c;
+ 		pm_power_off = tps65910_power_off;
++
++		/*
++		 * Restart by power-cycling the whole system through the PMIC.
++		 * This runs before the Tegra PMC's restart handler, which has
++		 * a lower priority. On the Microsoft Surface RT, a PMC reset
++		 * leaves the device powered off.
++		 */
++		ret = devm_register_sys_off_handler(&i2c->dev,
++						    SYS_OFF_MODE_RESTART,
++						    SYS_OFF_PRIO_DEFAULT,
++						    tps65910_restart_handler,
++						    tps65910);
++		if (ret) {
++			dev_err(&i2c->dev,
++				"failed to register restart handler: %d\n", ret);
++			return ret;
++		}
+ 	}
+ 
+ 	ret = devm_mfd_add_devices(tps65910->dev, -1,

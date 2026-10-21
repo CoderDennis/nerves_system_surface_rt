@@ -192,8 +192,8 @@ each other. The built system ends up in
 - [ ] An easier first install (today it needs a second, temporary boot
       setup, see below)
 - [ ] Use all four CPU cores, and the L2 cache
-- [ ] Make a software reboot restart the Surface. Today it powers off, so
-      after `mix upload` it has to be turned back on with the Power button.
+- [x] Software reboot (restarts through the PMIC, see
+      `linux/0003-mfd-tps65910-Restart-through-the-PMIC.patch`)
 
 ### Installing
 
@@ -226,8 +226,7 @@ second, temporary boot setup:
    The microSD card uses the same partition IDs, so leave it out.
 
 After that, update with `mix upload`. GRUB switches between partitions A
-and B on its own. The reboot at the end of the upload currently powers the
-Surface off, so press Power to start the new firmware.
+and B on its own, and the Surface restarts into the new firmware by itself.
 
 #### Untested alternative: install from Raspberry Pi OS
 
