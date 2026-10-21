@@ -1,0 +1,34 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Pan Chuang <panchuang@vivo.com>
+Date: Thu, 9 Jul 2026 11:34:17 +0800
+Subject: [PATCH] power: supply: surface-rt-ec: Remove redundant
+ dev_err()/dev_err_probe()
+
+The devm_request_threaded_irq() and devm_request_irq() now automatically
+log detailed error messages on failure. This eliminates the need for
+driver-specific dev_err() and dev_err_probe() calls that previously
+printed generic messages.
+
+Signed-off-by: Pan Chuang <panchuang@vivo.com>
+Link: https://patch.msgid.link/20260709033428.362970-39-panchuang@vivo.com
+Signed-off-by: Sebastian Reichel <sebastian.reichel@collabora.com>
+---
+ drivers/power/supply/surface-rt-ec.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/drivers/power/supply/surface-rt-ec.c b/drivers/power/supply/surface-rt-ec.c
+index a728ae0db858..da57b0a1a495 100644
+--- a/drivers/power/supply/surface-rt-ec.c
++++ b/drivers/power/supply/surface-rt-ec.c
+@@ -337,7 +337,7 @@ static int srt_ec_probe(struct i2c_client *client)
+ 	ret = devm_request_threaded_irq(dev, client->irq, NULL, srt_psy_detect_irq,
+ 					IRQF_ONESHOT, client->name, srt);
+ 	if (ret < 0)
+-		return dev_err_probe(dev, ret, "failed to request interrupt\n");
++		return ret;
+ 
+ 	ret = devm_delayed_work_autocancel(dev, &srt->poll_work, srt_bat_poll_work);
+ 	if (ret < 0)
+-- 
+2.55.0
+

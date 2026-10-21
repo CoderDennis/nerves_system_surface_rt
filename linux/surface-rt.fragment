@@ -68,6 +68,8 @@ CONFIG_I2C_HID_OF=y
 CONFIG_HID_MULTITOUCH=y
 CONFIG_HID_SENSOR_HUB=y
 
-# Not available in Linux 6.18 (added to mainline later):
-# - CONFIG_BATTERY_CHARGER_SURFACE_RT (battery and charger)
-# - CONFIG_SND_SOC_TEGRA_WM8962 (audio)
+# Battery and charger (embedded controller) and audio (WM8962 codec). Both
+# drivers were added to mainline after 6.18 and are backported in
+# linux/0008-0010.
+CONFIG_BATTERY_CHARGER_SURFACE_RT=y
+CONFIG_SND_SOC_TEGRA_WM8962=y

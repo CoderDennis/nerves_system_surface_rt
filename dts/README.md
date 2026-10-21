@@ -55,9 +55,10 @@ gives the same 5.
 
 - **No Touch/Type Cover.** Use a USB keyboard.
 - **One CPU speed, no CPU idle.** DVFS and CPU idle are disabled in the
-  `-efi` variant.
-- **No battery status or audio.** The drivers for these were added to
-  mainline after 6.18.
+  `-efi` variant. UEFI leaves the CPU at its top speed, 1.3 GHz, and idle
+  cores still wait in WFI. Deeper idle (LP2) would power cores off and
+  bring them back through the CPU reset vector, which can't be changed
+  under UEFI.
 
 The device tree declares 1 GB of RAM because 2 GB "doesn't work atm",
 according to its comment. That doesn't matter when booting through UEFI:
@@ -90,4 +91,3 @@ Not looked into yet:
 
 - Port `i2c-hotplug-gpio` for the cover keyboard.
 - Try the 2024 branch's improvements (DVFS, memory timings, thermal zones).
-- Move to a newer kernel for the battery and audio drivers.

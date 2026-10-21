@@ -130,8 +130,9 @@ jailbreak USB page.
    mainline Linux. This system builds Linux 6.18.36 with a patch that adds
    it, ported from the Open Surface RT community kernel. See
    [`dts/README.md`](dts/README.md) for the source, the changes and the
-   known limitations (no cover keyboard, one CPU speed, no battery status or
-   audio yet). The kernel config is `tegra_defconfig` plus
+   known limitations (no cover keyboard, one CPU speed). The battery and
+   audio drivers are backported from later kernels (`linux/0008`-`0010`).
+   The kernel config is `tegra_defconfig` plus
    [`linux/surface-rt.fragment`](linux/surface-rt.fragment).
 3. **Bootloader.** After Yahallo, UEFI boots EFI binaries directly. Use
    **GRUB (arm-efi)** for A/B switching, following the GRUB + grubenv pattern
@@ -196,6 +197,7 @@ each other. The built system ends up in
 - [x] Turn on the L2 cache (through the secure monitor, see `linux/0006`)
 - [x] USB flash drives (fixes a mainline ChipIdea bug on Tegra, see
       `linux/0007`)
+- [x] Battery status and audio (drivers backported from Linux 7.x)
 - [x] Software reboot (restarts through the PMIC, see
       `linux/0003-mfd-tps65910-Restart-through-the-PMIC.patch`)
 
