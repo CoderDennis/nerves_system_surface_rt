@@ -16,15 +16,21 @@ branch, commit 25a5100, Feb 2022) and adapted to mainline:
 - Drop the memory controller resets from the 3D2, VDE and VENC
   powergates in the -efi variant. UEFI leaves them powered off, the
   memory client flush times out, and the PMC probe fails with -EBUSY.
+- Register the secure monitor in the -efi variant, as the community
+  kernel does. This needs the tlm,microsoft-surface-rt support from
+  the Trusted Foundations patch.
+- Describe the CPUs' ACPI parking protocol mailboxes in the -efi
+  variant, from the firmware's ACPI MADT. UEFI parks the secondary CPUs
+  there, and the Tegra parking protocol patch starts them through them.
 
 The -efi variant is for booting through the UEFI firmware after the
 Yahallo jailbreak. It disables the PMIC core regulator, CPU DVFS, the
 L2 cache and CPU idle, which don't work there.
 ---
  arch/arm/boot/dts/nvidia/Makefile             |   2 +
- .../tegra30-microsoft-surface-rt-efi.dts      |  96 +++
+ .../tegra30-microsoft-surface-rt-efi.dts      | 121 ++++
  .../nvidia/tegra30-microsoft-surface-rt.dts   | 650 ++++++++++++++++++
- 3 files changed, 748 insertions(+)
+ 3 files changed, 773 insertions(+)
  create mode 100644 arch/arm/boot/dts/nvidia/tegra30-microsoft-surface-rt-efi.dts
  create mode 100644 arch/arm/boot/dts/nvidia/tegra30-microsoft-surface-rt.dts
 
@@ -42,10 +48,10 @@ index 2ed2d923c..82a94a220 100644
  	tegra30-pegatron-chagall.dtb
 diff --git a/arch/arm/boot/dts/nvidia/tegra30-microsoft-surface-rt-efi.dts b/arch/arm/boot/dts/nvidia/tegra30-microsoft-surface-rt-efi.dts
 new file mode 100644
-index 000000000..c614d906d
+index 000000000..d1b357e01
 --- /dev/null
 +++ b/arch/arm/boot/dts/nvidia/tegra30-microsoft-surface-rt-efi.dts
-@@ -0,0 +1,96 @@
+@@ -0,0 +1,121 @@
 +// SPDX-License-Identifier: GPL-2.0-only
 +
 +#include "tegra30-microsoft-surface-rt.dts"
@@ -60,6 +66,22 @@ index 000000000..c614d906d
 +
 +	/* L2 cache does not work yet */
 +	/delete-node/ cache-controller@50043000;
++
++	/*
++	 * Linux runs in the non-secure world when booted through UEFI.
++	 * Registering the secure monitor keeps the secondary CPUs' reset
++	 * handler from writing secure-only registers, which would stop them
++	 * from coming online. The Surface RT's monitor isn't Trusted
++	 * Foundations, so tlm,microsoft-surface-rt selects its own calls.
++	 */
++	firmware {
++		trusted-foundations {
++			compatible = "tlm,trusted-foundations";
++			tlm,version-major = <0>;
++			tlm,version-minor = <0>;
++			tlm,microsoft-surface-rt;
++		};
++	};
 +
 +	/*
 +	 * Mainline tegra30.dtsi has no core voltage stub regulator, so define
@@ -94,26 +116,35 @@ index 000000000..c614d906d
 +		/delete-node/ core-regulator@60;
 +	};
 +
-+	/* DVFS cannot work with UEFI, delete it */
++	/*
++	 * DVFS cannot work with UEFI, delete it.
++	 *
++	 * UEFI parks the secondary CPUs with the ACPI multiprocessor parking
++	 * protocol. The mailbox addresses are from the firmware's ACPI MADT.
++	 */
 +	cpus {
 +		cpu@0 {
 +			/delete-property/ cpu-supply;
 +			/delete-property/ operating-points-v2;
++			microsoft,parking-protocol-mailbox = <0x82001000>;
 +		};
 +
 +		cpu@1 {
 +			/delete-property/ cpu-supply;
 +			/delete-property/ operating-points-v2;
++			microsoft,parking-protocol-mailbox = <0x82002000>;
 +		};
 +
 +		cpu@2 {
 +			/delete-property/ cpu-supply;
 +			/delete-property/ operating-points-v2;
++			microsoft,parking-protocol-mailbox = <0x82003000>;
 +		};
 +
 +		cpu@3 {
 +			/delete-property/ cpu-supply;
 +			/delete-property/ operating-points-v2;
++			microsoft,parking-protocol-mailbox = <0x82004000>;
 +		};
 +	};
 +};

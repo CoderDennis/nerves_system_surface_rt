@@ -1,0 +1,150 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Dennis Palmer <dodava@gmail.com>
+Date: Wed, 21 Oct 2026 14:06:35 +0200
+Subject: [PATCH] ARM: tegra: Start secondary CPUs through the parking protocol
+
+When the Microsoft Surface RT boots through UEFI, the firmware parks the
+secondary CPUs with the ACPI multiprocessor parking protocol, which
+Windows uses to start them. The CPU reset vector (EVP) can't be written
+from the non-secure world, so the normal Tegra 3 boot flow powers the
+CPUs on but they never reach the kernel, and they fail to come online.
+
+If a CPU's device tree node has a microsoft,parking-protocol-mailbox
+property, start it the way the protocol describes: write the entry point
+and the CPU ID to its mailbox, then send it a wakeup SGI. The entry point
+turns off the MMU and caches the firmware left on, then jumps to
+secondary_startup.
+
+The mailbox addresses are from the firmware's ACPI MADT (parking
+protocol version 1). Thanks to the Open Surface RT community, whose
+UEFIPrivilegeEscalationPkg documents the Surface RT's mailboxes.
+
+---
+ arch/arm/mach-tegra/platsmp.c       | 64 +++++++++++++++++++++++++++++
+ arch/arm/mach-tegra/reset-handler.S | 21 ++++++++++
+ arch/arm/mach-tegra/reset.h         |  2 +
+ 3 files changed, 87 insertions(+)
+
+diff --git a/arch/arm/mach-tegra/platsmp.c b/arch/arm/mach-tegra/platsmp.c
+--- a/arch/arm/mach-tegra/platsmp.c
++++ b/arch/arm/mach-tegra/platsmp.c
+@@ -16,6 +16,7 @@
+ #include <linux/init.h>
+ #include <linux/io.h>
+ #include <linux/jiffies.h>
++#include <linux/of.h>
+ #include <linux/smp.h>
+ 
+ #include <soc/tegra/flowctrl.h>
+@@ -155,9 +156,72 @@
+ 	return ret;
+ }
+ 
++/* ACPI multiprocessor parking protocol mailbox (version 1) */
++struct tegra_parking_mailbox {
++	u32 cpu_id;
++	u32 reserved;
++	u32 entry_point_lo;
++	u32 entry_point_hi;
++};
++
++/*
++ * When the Microsoft Surface RT boots through UEFI, the firmware parks the
++ * secondary CPUs in its own spin loop, as the ACPI multiprocessor parking
++ * protocol (used by Windows) describes. The CPU reset vector can't be
++ * changed from the non-secure world, so the normal Tegra boot flow can't
++ * start them. Hand each CPU the kernel's entry point through its mailbox
++ * instead, then wake it with an SGI. The mailbox addresses come from the
++ * ACPI MADT and are described in the device tree.
++ */
++static int tegra_parking_protocol_boot_secondary(unsigned int cpu)
++{
++	struct tegra_parking_mailbox __iomem *mailbox;
++	struct device_node *np;
++	u32 addr;
++	int ret;
++
++	np = of_get_cpu_node(cpu, NULL);
++	if (!np)
++		return -ENODEV;
++
++	ret = of_property_read_u32(np, "microsoft,parking-protocol-mailbox",
++				   &addr);
++	of_node_put(np);
++	if (ret)
++		return -ENODEV;
++
++	mailbox = ioremap(addr, sizeof(*mailbox));
++	if (!mailbox)
++		return -ENOMEM;
++
++	if (readl_relaxed(&mailbox->cpu_id) != ~0U) {
++		pr_err("CPU%u: not parked by the firmware\n", cpu);
++		iounmap(mailbox);
++		return -EBUSY;
++	}
++
++	writel_relaxed(__pa_symbol(tegra_parked_secondary_startup),
++		       &mailbox->entry_point_lo);
++	writel_relaxed(0, &mailbox->entry_point_hi);
++	/* writel() orders the entry point before the CPU ID */
++	writel(MPIDR_AFFINITY_LEVEL(cpu_logical_map(cpu), 0), &mailbox->cpu_id);
++
++	arch_send_wakeup_ipi_mask(cpumask_of(cpu));
++
++	iounmap(mailbox);
++
++	return 0;
++}
++
+ static int tegra_boot_secondary(unsigned int cpu,
+ 					  struct task_struct *idle)
+ {
++	int ret;
++
++	ret = tegra_parking_protocol_boot_secondary(cpu);
++	if (ret != -ENODEV)
++		return ret;
++
+ 	if (IS_ENABLED(CONFIG_ARCH_TEGRA_2x_SOC) && tegra_get_chip_id() == TEGRA20)
+ 		return tegra20_boot_secondary(cpu, idle);
+ 	if (IS_ENABLED(CONFIG_ARCH_TEGRA_3x_SOC) && tegra_get_chip_id() == TEGRA30)
+diff --git a/arch/arm/mach-tegra/reset-handler.S b/arch/arm/mach-tegra/reset-handler.S
+--- a/arch/arm/mach-tegra/reset-handler.S
++++ b/arch/arm/mach-tegra/reset-handler.S
+@@ -301,3 +301,24 @@
+ 	.align L1_CACHE_SHIFT
+ 
+ ENTRY(__tegra_cpu_reset_handler_end)
++
++/*
++ * tegra_parked_secondary_startup
++ *
++ *   Entry point for a secondary CPU released from the UEFI firmware's
++ *   ACPI multiprocessor parking protocol (Microsoft Surface RT). This
++ *   stays in the kernel image and isn't copied to IRAM. The firmware
++ *   jumps here from its identity-mapped spin loop, so turn off the MMU
++ *   and caches before entering the kernel's secondary_startup.
++ */
++	.arm
++	.align	L1_CACHE_SHIFT
++ENTRY(tegra_parked_secondary_startup)
++	mrc	p15, 0, r0, c1, c0, 0		@ SCTLR
++	bic	r0, r0, #(1 << 0)		@ MMU
++	bic	r0, r0, #(1 << 2)		@ D-cache
++	bic	r0, r0, #(1 << 12)		@ I-cache
++	mcr	p15, 0, r0, c1, c0, 0
++	isb
++	b	secondary_startup_arm
++ENDPROC(tegra_parked_secondary_startup)
+diff --git a/arch/arm/mach-tegra/reset.h b/arch/arm/mach-tegra/reset.h
+--- a/arch/arm/mach-tegra/reset.h
++++ b/arch/arm/mach-tegra/reset.h
+@@ -53,5 +53,7 @@
+ 
+ void __init tegra_cpu_reset_handler_init(void);
+ 
++void tegra_parked_secondary_startup(void);
++
+ #endif
+ #endif
