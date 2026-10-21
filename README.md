@@ -3,10 +3,11 @@
 A [Nerves](https://nerves-project.org/) system for the original Microsoft
 Surface RT (2012, NVIDIA Tegra 3).
 
-> **Status:** Nerves boots to an IEx prompt on the Surface RT screen, with
-> a USB keyboard. So far it has only been booted from the Open Surface RT
-> UEFI Shell, not through GRUB, and with the root filesystem on microSD.
-> As far as we know, nobody has run Nerves on a Surface RT before.
+> **Status:** Nerves runs from the internal eMMC and boots through GRUB,
+> with A/B firmware updates over Wi-Fi (`mix upload`). The console is on
+> the built-in screen, with a USB keyboard. Only one of the four CPU cores
+> is used so far. As far as we know, nobody has run Nerves on a Surface RT
+> before.
 
 ## Hardware
 
@@ -175,7 +176,6 @@ each other. The built system ends up in
 - [x] Finish the jailbreak (Golden Keys, then Yahallo)
 - [x] Boot an existing community Surface RT Linux image to confirm the
       kernel, device tree and boot path work
-- [ ] Build a minimal Buildroot defconfig that boots from microSD through GRUB
 - [x] Nerves system skeleton with `nerves_system_br`, GRUB (arm-efi) and a
       `fwup` config with A/B updates (fwup configs tested with placeholder
       files; full build not run yet)
@@ -184,11 +184,47 @@ each other. The built system ends up in
       DTB, GRUB `bootarm.efi`, rootfs and a firmware image all build
 - [x] Boot Nerves to an IEx prompt (kernel and DTB loaded from the UEFI
       Shell on a USB stick, root filesystem on microSD)
-- [ ] Boot through GRUB. The UEFI firmware can't see the microSD slot, so
-      the boot partition has to be on USB or the eMMC.
+- [x] Boot through GRUB from the eMMC, with A/B updates. The UEFI firmware
+      can't see the microSD slot, so Nerves can't boot from microSD.
 - [x] Wi-Fi with VintageNet and SSH access
 - [x] Display output (Tegra DRM console on the built-in screen)
-- [ ] Install to eMMC
+- [x] Install to eMMC (see [Installing](#installing))
+- [ ] An easier first install (today it needs a second, temporary boot
+      setup, see below)
+- [ ] Use all four CPU cores, and the L2 cache
+
+### Installing
+
+The UEFI firmware can't boot from microSD, and Linux can't use a USB stick
+as a disk yet, so Nerves has to be installed on the internal eMMC. This
+erases the eMMC, including Windows. The first install currently needs a
+second, temporary boot setup:
+
+1. `mix burn` the firmware to a microSD card.
+2. On a FAT-formatted USB stick, put a UEFI Shell as
+   `EFI/BOOT/bootarm.efi`, plus the system's `zImage` and
+   `tegra30-microsoft-surface-rt-efi.dtb`, and a `startup.nsh` like:
+   ```
+   fs0:
+   zImage dtb=tegra30-microsoft-surface-rt-efi.dtb root=PARTUUID=04030201-02 rootwait console=tty1 cpuidle.off=1 clk_ignore_unused pd_ignore_unused
+   reset -s
+   ```
+   The Open Surface RT Raspberry Pi OS image's boot partition has such a
+   UEFI Shell.
+3. Boot the Surface from the stick, with the microSD card in, and connect
+   to Wi-Fi with `VintageNetWiFi.quick_configure/2`.
+4. Copy the `.fw` to the Surface (`sftp nerves.local`, `put` it in
+   `/root`), then write it to the eMMC at the IEx prompt:
+   ```elixir
+   System.cmd("fwup", ["-a", "-i", "/root/<name>.fw", "-d", "/dev/mmcblk0", "-t", "complete", "-U"])
+   ```
+   This only writes the eMMC's main area. Its boot partitions, which hold
+   the UEFI firmware, are read-only in Linux.
+5. Power off, remove the microSD card and the USB stick, and press Power.
+   The microSD card uses the same partition IDs, so leave it out.
+
+After that, update with `mix upload`. GRUB switches between partitions A
+and B on its own.
 
 ### Nerves references
 
