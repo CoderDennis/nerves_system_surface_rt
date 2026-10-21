@@ -224,6 +224,10 @@ each other. The built system ends up in
       `amixer -c 0 sset Speaker 110`.
 - [x] Software reboot (restarts through the PMIC, see
       `linux/0003-mfd-tps65910-Restart-through-the-PMIC.patch`)
+- [ ] Research the front and rear cameras. They don't seem to be USB:
+      probably camera sensors on the Tegra 3's MIPI CSI interface. Start by
+      finding the sensors in the firmware's ACPI tables. The community
+      kernels don't support them either.
 
 ### Installing
 
