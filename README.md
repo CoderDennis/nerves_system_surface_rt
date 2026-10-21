@@ -149,6 +149,23 @@ jailbreak USB page.
 6. **Display (optional).** Nerves runs headless by default. Options are a
    framebuffer console, Scenic on DRM, or a kiosk browser (heavier).
 
+### Using the system
+
+Add it to a Nerves project's `mix.exs` with a target named `surface_rt`:
+
+```elixir
+{:nerves_system_surface_rt,
+ github: "CoderDennis/nerves_system_surface_rt",
+ tag: "v0.2.0",
+ runtime: false,
+ targets: :surface_rt}
+```
+
+Releases have a prebuilt system artifact, so `mix firmware` doesn't need to
+build the system. Without one it's built from source, as below.
+[nerves_surface_rt_hello](https://github.com/CoderDennis/nerves_surface_rt_hello)
+is an example app.
+
 ### Building
 
 The system uses `nerves_system_br` 1.35.2, which builds Erlang/OTP 29.1.2

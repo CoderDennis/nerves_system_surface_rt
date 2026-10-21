@@ -1,6 +1,6 @@
 # Changelog
 
-## v0.2.0 (unreleased)
+## v0.2.0 - 2026-10-21
 
 The first version that runs on the Surface RT. Nerves installs to the
 internal eMMC, boots through GRUB, and updates over Wi-Fi with `mix upload`.

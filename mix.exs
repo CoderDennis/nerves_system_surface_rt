@@ -40,9 +40,11 @@ defmodule NervesSystemSurfaceRt.MixProject do
   defp nerves_package do
     [
       type: :system,
-      # No prebuilt artifacts are published yet, so this system is always
-      # built from source.
-      artifact_sites: [],
+      # Prebuilt system artifacts are attached to the GitHub releases. If
+      # there's none for the current sources, the system is built from source.
+      artifact_sites: [
+        {:github_releases, "CoderDennis/#{@app}"}
+      ],
       build_runner_opts: build_runner_opts(),
       platform: Nerves.System.BR,
       platform_config: [
