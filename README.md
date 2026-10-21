@@ -7,8 +7,8 @@ Surface RT (2012, NVIDIA Tegra 3).
 > with A/B firmware updates over Wi-Fi (`mix upload`) that fall back if
 > new firmware doesn't validate. All four CPU cores and the 1 MB L2 cache
 > are on. The console is on the built-in screen, with the Touch/Type Cover
-> or a USB keyboard. Battery status and USB storage work. The touchscreen
-> and the sound card are detected, but not tested yet.
+> or a USB keyboard. The touchscreen (multitouch), battery status and USB
+> storage work. The sound card is detected, but playback isn't tested yet.
 > As far as we know, nobody has run Nerves on a Surface RT before.
 
 ## Hardware
@@ -201,6 +201,8 @@ each other. The built system ends up in
       `linux/0007`)
 - [x] Battery status and audio (drivers backported from Linux 7.x)
 - [x] Touch/Type Cover, with hotplug (`linux/0011`, `linux/0012`)
+- [x] Touchscreen (multitouch, HID over I2C)
+- [ ] Test audio playback
 - [x] Software reboot (restarts through the PMIC, see
       `linux/0003-mfd-tps65910-Restart-through-the-PMIC.patch`)
 
