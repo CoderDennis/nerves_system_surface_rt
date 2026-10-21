@@ -1,0 +1,39 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Dennis Palmer <dodava@gmail.com>
+Date: Wed, 21 Oct 2026 16:50:09 +0200
+Subject: [PATCH] i2c: core: Allow address 0x00 for the Surface RT covers
+
+The Microsoft Surface RT's Touch and Type Covers are HID over I2C devices
+at address 0x00, which the I2C core rejects as the general call address,
+so they can't be registered. Accept it on the Surface RT only.
+
+Based on the Open Surface RT community kernel (grate-linux,
+microsoft-surface-rt branch), which makes the same exception in
+i2c_check_addr_validity() and i2c_check_7bit_addr_validity_strict().
+Only the first is needed to register the cover.
+---
+ drivers/i2c/i2c-core-base.c | 8 ++++++++
+ 1 file changed, 8 insertions(+)
+
+diff --git a/drivers/i2c/i2c-core-base.c b/drivers/i2c/i2c-core-base.c
+index ae7e9c8b65a6..d6801bee7a20 100644
+--- a/drivers/i2c/i2c-core-base.c
++++ b/drivers/i2c/i2c-core-base.c
+@@ -750,6 +750,14 @@ static unsigned short i2c_encode_flags_to_addr(struct i2c_client *client)
+  * are purposely not enforced, except for the general call address. */
+ static int i2c_check_addr_validity(unsigned int addr, unsigned short flags)
+ {
++	/*
++	 * The Microsoft Surface RT's Touch and Type Covers use the general
++	 * call address 0x00.
++	 */
++	if (addr == 0x00 && !(flags & I2C_CLIENT_TEN) &&
++	    of_machine_is_compatible("microsoft,surface-rt"))
++		return 0;
++
+ 	if (flags & I2C_CLIENT_TEN) {
+ 		/* 10-bit address, all values are valid */
+ 		if (addr > 0x3ff)
+-- 
+2.55.0
+

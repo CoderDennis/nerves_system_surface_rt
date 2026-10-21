@@ -25,8 +25,11 @@ thermal zones, L2 cache and working PMIC/DVFS. Its `-efi.dts` is incomplete
 
 - `mmc` aliases use node paths, since mainline `tegra30.dtsi` has no
   `sdmmcN` labels.
-- The Touch/Type Cover node is left out. It needs the community kernel's
-  `i2c-hotplug-gpio` driver, which isn't in mainline.
+- The Touch/Type Cover's parent I2C bus is referenced by path, since
+  mainline `tegra30.dtsi` has no `i2c1` label. The cover needs the
+  community kernel's `i2c-hotplug-gpio` driver (`linux/0011`) and its
+  exception for I2C address 0x00 (`linux/0012`), neither of which is in
+  mainline.
 - The `-efi` variant defines the `vdd_pd_core_stub` regulator itself, since
   mainline `tegra30.dtsi` doesn't have it.
 - The `-efi` variant describes each CPU's ACPI parking protocol mailbox
@@ -53,7 +56,6 @@ gives the same 5.
 
 ## Known limitations
 
-- **No Touch/Type Cover.** Use a USB keyboard.
 - **One CPU speed, no CPU idle.** DVFS and CPU idle are disabled in the
   `-efi` variant. UEFI leaves the CPU at its top speed, 1.3 GHz, and idle
   cores still wait in WFI. Deeper idle (LP2) would power cores off and
@@ -89,5 +91,4 @@ Not looked into yet:
 
 ## TODO
 
-- Port `i2c-hotplug-gpio` for the cover keyboard.
 - Try the 2024 branch's improvements (DVFS, memory timings, thermal zones).

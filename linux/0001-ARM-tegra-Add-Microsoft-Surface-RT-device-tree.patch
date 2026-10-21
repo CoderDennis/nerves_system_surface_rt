@@ -9,8 +9,9 @@ branch, commit 25a5100, Feb 2022) and adapted to mainline:
 
 - Use node paths for the mmc aliases, since mainline tegra30.dtsi has
   no sdmmcN labels.
-- Leave out the Touch/Type Cover node. It depends on the out-of-tree
-  i2c-hotplug-gpio driver.
+- Reference the Touch/Type Cover's parent I2C bus by path, since
+  mainline tegra30.dtsi has no i2c1 label. The cover needs the
+  community's i2c-hotplug-gpio driver.
 - Define the core voltage stub regulator in the -efi variant, since
   mainline tegra30.dtsi doesn't have one.
 - Drop the memory controller resets from the 3D2, VDE and VENC
@@ -30,8 +31,8 @@ CPU idle, which don't work there.
 ---
  arch/arm/boot/dts/nvidia/Makefile             |   2 +
  .../tegra30-microsoft-surface-rt-efi.dts      | 118 ++++
- .../nvidia/tegra30-microsoft-surface-rt.dts   | 650 ++++++++++++++++++
- 3 files changed, 770 insertions(+)
+ .../nvidia/tegra30-microsoft-surface-rt.dts   | 668 ++++++++++++++++++
+ 3 files changed, 788 insertions(+)
  create mode 100644 arch/arm/boot/dts/nvidia/tegra30-microsoft-surface-rt-efi.dts
  create mode 100644 arch/arm/boot/dts/nvidia/tegra30-microsoft-surface-rt.dts
 
@@ -173,10 +174,10 @@ index 000000000..dfad026f7
 +};
 diff --git a/arch/arm/boot/dts/nvidia/tegra30-microsoft-surface-rt.dts b/arch/arm/boot/dts/nvidia/tegra30-microsoft-surface-rt.dts
 new file mode 100644
-index 000000000..ae3508cee
+index 000000000..30fc69832
 --- /dev/null
 +++ b/arch/arm/boot/dts/nvidia/tegra30-microsoft-surface-rt.dts
-@@ -0,0 +1,650 @@
+@@ -0,0 +1,668 @@
 +// SPDX-License-Identifier: GPL-2.0
 +
 +/dts-v1/;
@@ -297,11 +298,29 @@ index 000000000..ae3508cee
 +	};
 +
 +	/*
-+	 * TODO: Touch/Type Cover. The community kernel attaches the cover
-+	 * (HID over I2C at 0x00 on I2C1, descriptor at 0x0041, IRQ GPIO O5)
-+	 * through an "i2c-hotplug-gpio" bridge with presence detection on
-+	 * GPIO S0. That driver isn't in mainline yet, so the node is left out.
++	 * Touch/Type Cover, HID over I2C on I2C1. Its bus is only connected
++	 * while a cover is attached, which GPIO S0 detects. Needs the
++	 * i2c-hotplug-gpio driver from the community kernel.
 +	 */
++	i2c-cover {
++		compatible = "i2c-hotplug-gpio";
++
++		#address-cells = <1>;
++		#size-cells = <0>;
++
++		interrupts-extended = <&gpio TEGRA_GPIO(S, 0) IRQ_TYPE_EDGE_BOTH>;
++		detect-gpios = <&gpio TEGRA_GPIO(S, 0) GPIO_ACTIVE_HIGH>;
++
++		i2c-parent = <&{/i2c@7000c000}>;
++
++		cover@0 {
++			compatible = "hid-over-i2c";
++			reg = <0x00>;
++			hid-descr-addr = <0x0041>;
++			interrupt-parent = <&gpio>;
++			interrupts = <TEGRA_GPIO(O, 5) IRQ_TYPE_LEVEL_LOW>;
++		};
++	};
 +
 +	/* Daughter board - I2C2 */
 +	i2c@7000c400 {

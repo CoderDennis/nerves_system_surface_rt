@@ -61,12 +61,15 @@ CONFIG_SYSFB=y
 CONFIG_DRM_FBDEV_EMULATION=y
 CONFIG_FRAMEBUFFER_CONSOLE=y
 
-# Touchscreen (Atmel maXTouch) and sensor hub, both HID over I2C
+# Touchscreen (Atmel maXTouch), sensor hub and Touch/Type Cover, all HID
+# over I2C. The cover's I2C bus is only connected while a cover is
+# attached (i2c-hotplug-gpio, linux/0011).
 CONFIG_HID=y
 CONFIG_I2C_HID_CORE=y
 CONFIG_I2C_HID_OF=y
 CONFIG_HID_MULTITOUCH=y
 CONFIG_HID_SENSOR_HUB=y
+CONFIG_I2C_HOTPLUG_GPIO=y
 
 # Battery and charger (embedded controller) and audio (WM8962 codec). Both
 # drivers were added to mainline after 6.18 and are backported in

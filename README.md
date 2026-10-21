@@ -6,7 +6,8 @@ Surface RT (2012, NVIDIA Tegra 3).
 > **Status:** Nerves runs from the internal eMMC and boots through GRUB,
 > with A/B firmware updates over Wi-Fi (`mix upload`) that fall back if
 > new firmware doesn't validate. All four CPU cores and the 1 MB L2 cache
-> are on. The console is on the built-in screen, with a USB keyboard.
+> are on. The console is on the built-in screen, with the Touch/Type Cover
+> or a USB keyboard. The battery, audio, touchscreen and USB storage work.
 > As far as we know, nobody has run Nerves on a Surface RT before.
 
 ## Hardware
@@ -130,7 +131,7 @@ jailbreak USB page.
    mainline Linux. This system builds Linux 6.18.36 with a patch that adds
    it, ported from the Open Surface RT community kernel. See
    [`dts/README.md`](dts/README.md) for the source, the changes and the
-   known limitations (no cover keyboard, one CPU speed). The battery and
+   known limitations (one CPU speed). The battery and
    audio drivers are backported from later kernels (`linux/0008`-`0010`).
    The kernel config is `tegra_defconfig` plus
    [`linux/surface-rt.fragment`](linux/surface-rt.fragment).
@@ -198,6 +199,7 @@ each other. The built system ends up in
 - [x] USB flash drives (fixes a mainline ChipIdea bug on Tegra, see
       `linux/0007`)
 - [x] Battery status and audio (drivers backported from Linux 7.x)
+- [x] Touch/Type Cover, with hotplug (`linux/0011`, `linux/0012`)
 - [x] Software reboot (restarts through the PMIC, see
       `linux/0003-mfd-tps65910-Restart-through-the-PMIC.patch`)
 
