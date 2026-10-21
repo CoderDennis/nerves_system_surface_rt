@@ -14,7 +14,8 @@ From the Open Surface RT community kernel,
 - `tegra30-microsoft-surface-rt.dts`: the full device.
 - `tegra30-microsoft-surface-rt-efi.dts`: includes the above and disables
   what doesn't work when booted through UEFI: the PMIC core regulator, CPU
-  DVFS, the L2 cache and CPU idle. This is the one GRUB loads.
+  DVFS and CPU idle. Upstream it also disables the L2 cache, which this
+  system turns back on. This is the one GRUB loads.
 
 The newer `microsoft-surface-rt` branch (Mar 2024) adds memory timings,
 thermal zones, L2 cache and working PMIC/DVFS. Its `-efi.dts` is incomplete
@@ -88,5 +89,5 @@ Not looked into yet:
 ## TODO
 
 - Port `i2c-hotplug-gpio` for the cover keyboard.
-- Try the 2024 branch's improvements (L2 cache, DVFS, memory timings).
+- Try the 2024 branch's improvements (DVFS, memory timings, thermal zones).
 - Move to a newer kernel for the battery and audio drivers.
