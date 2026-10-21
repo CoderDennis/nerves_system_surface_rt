@@ -236,9 +236,12 @@ validates it once all applications have started. If it doesn't, the next
 boot falls back to the previous firmware: if new firmware hangs, hold
 Power for 10 seconds and turn the Surface back on.
 
-`mix upload` doesn't update `grub.cfg` on the boot partition, only a full
-install does. When `grub.cfg` changes, copy it to `/mnt/boot/EFI/BOOT/`
-on the device (remount `/mnt/boot` read-write first).
+The kernel arguments (`LINUX_ARGS` in `post-build.sh`) are in each root
+filesystem, so they ship with `mix upload` and are covered by the
+fallback. `mix upload` doesn't update the boot partition's `grub.cfg`,
+which only picks the partition and handles the fallback. Only a full
+install writes it. When it changes, copy it to `/mnt/boot/EFI/BOOT/` on
+the device (remount `/mnt/boot` read-write first).
 
 #### Untested alternative: install from Raspberry Pi OS
 
