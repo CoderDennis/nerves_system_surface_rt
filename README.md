@@ -229,6 +229,29 @@ After that, update with `mix upload`. GRUB switches between partitions A
 and B on its own. The reboot at the end of the upload currently powers the
 Surface off, so press Power to start the new firmware.
 
+#### Untested alternative: install from Raspberry Pi OS
+
+This would avoid the microSD card and the hand-made UEFI Shell setup. It
+only needs one USB stick, but it hasn't been tried yet.
+
+1. Write the Open Surface RT Raspberry Pi OS image to a USB stick, boot the
+   Surface from it (Volume Down + Power) and connect to Wi-Fi. Its kernel
+   can use USB storage.
+2. On the Mac, turn the `.fw` into a raw disk image:
+   ```sh
+   fwup -a -i <name>.fw -t complete -d surface.img
+   ```
+3. Copy `surface.img` to the Surface (e.g. with `scp`) and write it to the
+   eMMC: `sudo dd if=surface.img of=/dev/mmcblk0 bs=4M conv=fsync`.
+   Check with `lsblk` that `mmcblk0` is the 32/64 GB eMMC first.
+4. Power off, remove the USB stick, and press Power.
+
+Written as a raw image, the application data partition probably stays at
+the 256 MiB set in `fwup.conf`. fwup can only grow it to fill the disk
+when it writes the disk directly. Installing the armhf `fwup` package on
+Raspberry Pi OS and running `fwup -a -i <name>.fw -t complete -d
+/dev/mmcblk0` there would avoid that.
+
 ### Nerves references
 
 - [Nerves docs: Systems](https://hexdocs.pm/nerves/systems.html)
