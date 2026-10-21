@@ -57,6 +57,30 @@ according to its comment. That doesn't matter when booting through UEFI:
 the kernel takes its memory map from UEFI, not the device tree. The
 Raspberry Pi OS image uses the same 1 GB device tree and sees all 2 GB.
 
+## Boot messages
+
+These show up on every boot.
+
+Expected, from what the `-efi` variant and the boot options turn off:
+
+- `tps65910-pmic ... probe ... failed with error -22`: the PMIC's
+  regulators are removed.
+- `tegra20-cpufreq: operating points not found`: the CPU operating points
+  are removed.
+- `failed to register cpuidle driver`: `cpuidle.off=1`.
+
+Not looked into yet:
+
+- `CPU1: failed to come online` (and CPU2, CPU3): only one core runs.
+  Probably needs the community trusted-foundations support.
+- `serial-tegra 70006200.serial: Couldn't get the reset`.
+- `spi-nor spi0.1: unrecognized JEDEC id bytes: 00 00 00 00 00 00`: the
+  SPI flash in the device tree doesn't answer.
+- `tegra-mc ... display0a: read @0x...: EMEM address decode error`, once,
+  probably during the handover from the UEFI framebuffer.
+- `null-device:pll_p_out3_cclkg: connection ID is greater than 16` and
+  similar, from the Tegra 3 clock driver at time 0.
+
 ## TODO
 
 - Port `i2c-hotplug-gpio` for the cover keyboard.
