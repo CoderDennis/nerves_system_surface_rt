@@ -17,20 +17,21 @@ branch, commit 25a5100, Feb 2022) and adapted to mainline:
   powergates in the -efi variant. UEFI leaves them powered off, the
   memory client flush times out, and the PMC probe fails with -EBUSY.
 - Register the secure monitor in the -efi variant, as the community
-  kernel does. This needs the tlm,microsoft-surface-rt support from
-  the Trusted Foundations patch.
+  kernel does, and keep the L2 cache, which the kernel enables through
+  the monitor. This needs the tlm,microsoft-surface-rt support from the
+  Trusted Foundations and L2 cache patches.
 - Describe the CPUs' ACPI parking protocol mailboxes in the -efi
   variant, from the firmware's ACPI MADT. UEFI parks the secondary CPUs
   there, and the Tegra parking protocol patch starts them through them.
 
 The -efi variant is for booting through the UEFI firmware after the
-Yahallo jailbreak. It disables the PMIC core regulator, CPU DVFS, the
-L2 cache and CPU idle, which don't work there.
+Yahallo jailbreak. It disables the PMIC core regulator, CPU DVFS and
+CPU idle, which don't work there.
 ---
  arch/arm/boot/dts/nvidia/Makefile             |   2 +
- .../tegra30-microsoft-surface-rt-efi.dts      | 121 ++++
+ .../tegra30-microsoft-surface-rt-efi.dts      | 118 ++++
  .../nvidia/tegra30-microsoft-surface-rt.dts   | 650 ++++++++++++++++++
- 3 files changed, 773 insertions(+)
+ 3 files changed, 770 insertions(+)
  create mode 100644 arch/arm/boot/dts/nvidia/tegra30-microsoft-surface-rt-efi.dts
  create mode 100644 arch/arm/boot/dts/nvidia/tegra30-microsoft-surface-rt.dts
 
@@ -48,10 +49,10 @@ index 2ed2d923c..82a94a220 100644
  	tegra30-pegatron-chagall.dtb
 diff --git a/arch/arm/boot/dts/nvidia/tegra30-microsoft-surface-rt-efi.dts b/arch/arm/boot/dts/nvidia/tegra30-microsoft-surface-rt-efi.dts
 new file mode 100644
-index 000000000..d1b357e01
+index 000000000..dfad026f7
 --- /dev/null
 +++ b/arch/arm/boot/dts/nvidia/tegra30-microsoft-surface-rt-efi.dts
-@@ -0,0 +1,121 @@
+@@ -0,0 +1,118 @@
 +// SPDX-License-Identifier: GPL-2.0-only
 +
 +#include "tegra30-microsoft-surface-rt.dts"
@@ -64,14 +65,11 @@ index 000000000..d1b357e01
 +/ {
 +	compatible = "microsoft,surface-rt-efi", "microsoft,surface-rt", "nvidia,tegra30";
 +
-+	/* L2 cache does not work yet */
-+	/delete-node/ cache-controller@50043000;
-+
 +	/*
 +	 * Linux runs in the non-secure world when booted through UEFI.
-+	 * Registering the secure monitor keeps the secondary CPUs' reset
-+	 * handler from writing secure-only registers, which would stop them
-+	 * from coming online. The Surface RT's monitor isn't Trusted
++	 * Registering the secure monitor keeps the CPU reset handler from
++	 * writing secure-only registers, and lets the kernel enable the L2
++	 * cache through the monitor. The Surface RT's monitor isn't Trusted
 +	 * Foundations, so tlm,microsoft-surface-rt selects its own calls.
 +	 */
 +	firmware {

@@ -5,8 +5,8 @@ Surface RT (2012, NVIDIA Tegra 3).
 
 > **Status:** Nerves runs from the internal eMMC and boots through GRUB,
 > with A/B firmware updates over Wi-Fi (`mix upload`) that fall back if
-> new firmware doesn't validate. All four CPU cores run; the L2 cache is
-> still off. The console is on the built-in screen, with a USB keyboard.
+> new firmware doesn't validate. All four CPU cores and the 1 MB L2 cache
+> are on. The console is on the built-in screen, with a USB keyboard.
 > As far as we know, nobody has run Nerves on a Surface RT before.
 
 ## Hardware
@@ -130,7 +130,7 @@ jailbreak USB page.
    mainline Linux. This system builds Linux 6.18.36 with a patch that adds
    it, ported from the Open Surface RT community kernel. See
    [`dts/README.md`](dts/README.md) for the source, the changes and the
-   known limitations (no cover keyboard, no L2 cache, no battery status or
+   known limitations (no cover keyboard, one CPU speed, no battery status or
    audio yet). The kernel config is `tegra_defconfig` plus
    [`linux/surface-rt.fragment`](linux/surface-rt.fragment).
 3. **Bootloader.** After Yahallo, UEFI boots EFI binaries directly. Use
@@ -193,7 +193,7 @@ each other. The built system ends up in
       setup, see below)
 - [x] Fall back to the previous firmware if new firmware isn't validated
 - [x] Use all four CPU cores (ACPI parking protocol, see `linux/0005`)
-- [ ] Turn on the L2 cache
+- [x] Turn on the L2 cache (through the secure monitor, see `linux/0006`)
 - [x] Software reboot (restarts through the PMIC, see
       `linux/0003-mfd-tps65910-Restart-through-the-PMIC.patch`)
 

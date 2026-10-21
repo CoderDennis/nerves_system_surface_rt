@@ -36,7 +36,8 @@ thermal zones, L2 cache and working PMIC/DVFS. Its `-efi.dts` is incomplete
   the four cores runs.
 - The `-efi` variant registers the secure monitor with a
   `trusted-foundations` node and the community's `tlm,microsoft-surface-rt`
-  property (supported by `linux/0004`).
+  property (supported by `linux/0004`), and keeps the L2 cache, which the
+  kernel enables through the monitor (`linux/0006`).
 - The `-efi` variant drops the memory controller resets from the `td2`
   (3D2), `vdec` and `venc` powergates. UEFI leaves them powered off, and
   at probe the PMC driver asserts their resets, which first flushes their
@@ -52,10 +53,8 @@ gives the same 5.
 ## Known limitations
 
 - **No Touch/Type Cover.** Use a USB keyboard.
-- **One CPU speed, no L2 cache.** Disabled in the `-efi` variant. The
-  Open Surface RT Raspberry Pi OS image (kernel `6.4.0-rc6-next-20230616`)
-  turns the L2 cache on through the secure monitor, using community
-  kernel code that `linux/0004` doesn't include yet.
+- **One CPU speed, no CPU idle.** DVFS and CPU idle are disabled in the
+  `-efi` variant.
 - **No battery status or audio.** The drivers for these were added to
   mainline after 6.18.
 

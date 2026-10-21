@@ -1,0 +1,161 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Dennis Palmer <dodava@gmail.com>
+Date: Wed, 21 Oct 2026 15:01:32 +0200
+Subject: [PATCH] ARM: l2c: Enable the L2 cache through the Surface RT monitor
+
+When the Microsoft Surface RT boots through UEFI, Linux runs in the
+non-secure world and can't write the L2C-310's control register or the
+CPUs' auxiliary control register (ACTLR). Its secure monitor has an
+L2C-310 service instead: enable, disable, and enable full line of zeros
+in the calling CPU's ACTLR.
+
+- Add starting_cpu and dying_cpu hooks to outer_cache_fns, which
+  l2c310_starting_cpu() and l2c310_dying_cpu() call instead of writing
+  the ACTLR, and keep them in __l2c_init().
+- With tlm,microsoft-surface-rt, use the monitor's service for the
+  control register and for full line of zeros when a CPU starts. Other
+  secure register writes are dropped, so the firmware's AUX, latency and
+  prefetch settings stay.
+- Do nothing when a CPU goes offline. The monitor can't turn full line of
+  zeros off for one CPU, and its disable call turns off the whole cache
+  without cleaning it.
+
+Based on the Open Surface RT community kernel (grate-linux,
+microsoft-surface-rt branch), which also overrides the disable and
+resume operations. Those aren't needed: mainline's versions clean the
+cache and reach the monitor through write_sec.
+
+---
+ arch/arm/include/asm/outercache.h      |  3 ++
+ arch/arm/mm/cache-l2x0.c               |  8 ++++
+ drivers/firmware/trusted_foundations.c | 61 ++++++++++++++++++++++++--
+ 3 files changed, 68 insertions(+), 4 deletions(-)
+
+diff --git a/arch/arm/include/asm/outercache.h b/arch/arm/include/asm/outercache.h
+--- a/arch/arm/include/asm/outercache.h
++++ b/arch/arm/include/asm/outercache.h
+@@ -27,6 +27,9 @@
+ 	/* This is an ARM L2C thing */
+ 	void (*write_sec)(unsigned long, unsigned);
+ 	void (*configure)(const struct l2x0_regs *);
++	/* Per-CPU L2C-310 setup, for firmware that owns the CPU's ACTLR */
++	int (*starting_cpu)(unsigned int cpu);
++	int (*dying_cpu)(unsigned int cpu);
+ };
+ 
+ extern struct outer_cache_fns outer_cache;
+diff --git a/arch/arm/mm/cache-l2x0.c b/arch/arm/mm/cache-l2x0.c
+--- a/arch/arm/mm/cache-l2x0.c
++++ b/arch/arm/mm/cache-l2x0.c
+@@ -595,12 +595,18 @@
+ 
+ static int l2c310_starting_cpu(unsigned int cpu)
+ {
++	if (outer_cache.starting_cpu)
++		return outer_cache.starting_cpu(cpu);
++
+ 	set_auxcr(get_auxcr() | BIT(3) | BIT(2) | BIT(1));
+ 	return 0;
+ }
+ 
+ static int l2c310_dying_cpu(unsigned int cpu)
+ {
++	if (outer_cache.dying_cpu)
++		return outer_cache.dying_cpu(cpu);
++
+ 	set_auxcr(get_auxcr() & ~(BIT(3) | BIT(2) | BIT(1)));
+ 	return 0;
+ }
+@@ -853,6 +859,8 @@
+ 	fns = data->outer_cache;
+ 	fns.write_sec = outer_cache.write_sec;
+ 	fns.configure = outer_cache.configure;
++	fns.starting_cpu = outer_cache.starting_cpu;
++	fns.dying_cpu = outer_cache.dying_cpu;
+ 	if (data->fixup)
+ 		data->fixup(l2x0_base, cache_id, &fns);
+ 	if (nosync) {
+diff --git a/drivers/firmware/trusted_foundations.c b/drivers/firmware/trusted_foundations.c
+--- a/drivers/firmware/trusted_foundations.c
++++ b/drivers/firmware/trusted_foundations.c
+@@ -30,6 +30,12 @@
+ #define TF_CPU_PM_S1		0xffffffe4
+ #define TF_CPU_PM_S1_NOFLUSH_L2	0xffffffe7
+ 
++/* Microsoft Surface RT secure monitor: L2C-310 service */
++#define TZ_L2C310_SERVICE		0x2
++#define TZ_L2C310_METHOD_ENABLE		0x0
++#define TZ_L2C310_METHOD_DISABLE	0x1
++#define TZ_L2C310_METHOD_ENABLE_FLZ	0x4
++
+ static unsigned long tf_idle_mode = TF_PM_MODE_NONE;
+ static unsigned long cpu_boot_addr;
+ 
+@@ -138,16 +144,63 @@
+ 
+ 	return 0;
+ }
++
++/*
++ * The Surface RT's monitor only controls the L2C-310 as a whole and the
++ * CPUs' full line of zeros setting. Writes to the other secure registers
++ * (AUX, latencies, prefetch) are dropped, so the firmware's values stay.
++ */
++static void surface_rt_cache_write_sec(unsigned long val, unsigned int reg)
++{
++	if (reg != L2X0_CTRL)
++		return;
++
++	if (val == L2X0_CTRL_EN)
++		tf_generic_smc(TZ_L2C310_SERVICE, TZ_L2C310_METHOD_ENABLE, 0);
++	else
++		tf_generic_smc(TZ_L2C310_SERVICE, TZ_L2C310_METHOD_DISABLE, 0);
++}
++
++/* Enable full line of zeros in the calling CPU's ACTLR */
++static int surface_rt_l2c310_starting_cpu(unsigned int cpu)
++{
++	tf_generic_smc(TZ_L2C310_SERVICE, TZ_L2C310_METHOD_ENABLE_FLZ, 0);
++
++	return 0;
++}
++
++/*
++ * The monitor has no call to turn full line of zeros off again for one
++ * CPU, and its disable call turns off the whole L2C-310 without cleaning
++ * it. Leave the setting alone: a CPU that the parking protocol started
++ * can't be brought back online anyway.
++ */
++static int surface_rt_l2c310_dying_cpu(unsigned int cpu)
++{
++	return 0;
++}
++
++static int surface_rt_init_cache(void)
++{
++	outer_cache.write_sec = surface_rt_cache_write_sec;
++	outer_cache.starting_cpu = surface_rt_l2c310_starting_cpu;
++	outer_cache.dying_cpu = surface_rt_l2c310_dying_cpu;
++
++	return 0;
++}
+ #endif /* CONFIG_CACHE_L2X0 */
+ 
+ /*
+  * The Microsoft Surface RT's secure monitor isn't Trusted Foundations and
+- * doesn't take its calls. Registering it still marks the firmware as
+- * present, so the CPU reset handler skips the secure-only errata writes
+- * and the secondary CPUs can come online. Without set_cpu_boot_addr, the
+- * kernel writes the CPU reset vector itself.
++ * doesn't take its calls, apart from its own L2C-310 service. Registering
++ * it marks the firmware as present, so the CPU reset handler skips the
++ * secure-only errata writes. Without set_cpu_boot_addr, the kernel writes
++ * the CPU reset vector itself.
+  */
+ static const struct firmware_ops trusted_foundations_surface_ops = {
++#ifdef CONFIG_CACHE_L2X0
++	.l2x0_init = surface_rt_init_cache,
++#endif
+ };
+ 
+ static const struct firmware_ops trusted_foundations_ops = {
