@@ -28,6 +28,15 @@ thermal zones, L2 cache and working PMIC/DVFS. Its `-efi.dts` is incomplete
   `i2c-hotplug-gpio` driver, which isn't in mainline.
 - The `-efi` variant defines the `vdd_pd_core_stub` regulator itself, since
   mainline `tegra30.dtsi` doesn't have it.
+- The `-efi` variant describes each CPU's ACPI parking protocol mailbox
+  (`microsoft,parking-protocol-mailbox`), from the firmware's ACPI MADT.
+  UEFI parks the secondary CPUs there, the way Windows expects, and the
+  reset vector can't be changed from the non-secure world.
+  `linux/0005` starts them through the mailboxes. Without it, only one of
+  the four cores runs.
+- The `-efi` variant registers the secure monitor with a
+  `trusted-foundations` node and the community's `tlm,microsoft-surface-rt`
+  property (supported by `linux/0004`).
 - The `-efi` variant drops the memory controller resets from the `td2`
   (3D2), `vdec` and `venc` powergates. UEFI leaves them powered off, and
   at probe the PMC driver asserts their resets, which first flushes their
@@ -45,10 +54,8 @@ gives the same 5.
 - **No Touch/Type Cover.** Use a USB keyboard.
 - **One CPU speed, no L2 cache.** Disabled in the `-efi` variant. The
   Open Surface RT Raspberry Pi OS image (kernel `6.4.0-rc6-next-20230616`)
-  turns the L2 cache on through a `trusted-foundations` node with a
-  `tlm,microsoft-surface-rt` property, which needs community kernel code.
-- **One CPU core.** The other three fail to come online. They also need
-  the community trusted-foundations support.
+  turns the L2 cache on through the secure monitor, using community
+  kernel code that `linux/0004` doesn't include yet.
 - **No battery status or audio.** The drivers for these were added to
   mainline after 6.18.
 
@@ -71,8 +78,6 @@ Expected, from what the `-efi` variant and the boot options turn off:
 
 Not looked into yet:
 
-- `CPU1: failed to come online` (and CPU2, CPU3): only one core runs.
-  Probably needs the community trusted-foundations support.
 - `serial-tegra 70006200.serial: Couldn't get the reset`.
 - `spi-nor spi0.1: unrecognized JEDEC id bytes: 00 00 00 00 00 00`: the
   SPI flash in the device tree doesn't answer.

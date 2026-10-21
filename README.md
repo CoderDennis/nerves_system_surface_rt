@@ -4,10 +4,10 @@ A [Nerves](https://nerves-project.org/) system for the original Microsoft
 Surface RT (2012, NVIDIA Tegra 3).
 
 > **Status:** Nerves runs from the internal eMMC and boots through GRUB,
-> with A/B firmware updates over Wi-Fi (`mix upload`). The console is on
-> the built-in screen, with a USB keyboard. Only one of the four CPU cores
-> is used so far. As far as we know, nobody has run Nerves on a Surface RT
-> before.
+> with A/B firmware updates over Wi-Fi (`mix upload`) that fall back if
+> new firmware doesn't validate. All four CPU cores run; the L2 cache is
+> still off. The console is on the built-in screen, with a USB keyboard.
+> As far as we know, nobody has run Nerves on a Surface RT before.
 
 ## Hardware
 
@@ -191,7 +191,9 @@ each other. The built system ends up in
 - [x] Install to eMMC (see [Installing](#installing))
 - [ ] An easier first install (today it needs a second, temporary boot
       setup, see below)
-- [ ] Use all four CPU cores, and the L2 cache
+- [x] Fall back to the previous firmware if new firmware isn't validated
+- [x] Use all four CPU cores (ACPI parking protocol, see `linux/0005`)
+- [ ] Turn on the L2 cache
 - [x] Software reboot (restarts through the PMIC, see
       `linux/0003-mfd-tps65910-Restart-through-the-PMIC.patch`)
 
@@ -227,6 +229,14 @@ second, temporary boot setup:
 
 After that, update with `mix upload`. GRUB switches between partitions A
 and B on its own, and the Surface restarts into the new firmware by itself.
+New firmware boots once as a trial. Nerves.Runtime's StartupGuard
+validates it once all applications have started. If it doesn't, the next
+boot falls back to the previous firmware: if new firmware hangs, hold
+Power for 10 seconds and turn the Surface back on.
+
+`mix upload` doesn't update `grub.cfg` on the boot partition, only a full
+install does. When `grub.cfg` changes, copy it to `/mnt/boot/EFI/BOOT/`
+on the device (remount `/mnt/boot` read-write first).
 
 #### Untested alternative: install from Raspberry Pi OS
 
