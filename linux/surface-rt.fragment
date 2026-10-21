@@ -45,6 +45,9 @@ CONFIG_USB_RTL8152=y
 # they load after the root filesystem is mounted. Built in, mwifiex asks
 # for its firmware about 4 seconds into the boot, before the rootfs is
 # there, and the interface never appears.
+#
+# linux/0002-wifi-mwifiex-Name-the-station-interface-wlan0.patch renames
+# the interface from mwifiex's "mlan0" to the "wlan0" Nerves expects.
 CONFIG_CFG80211=m
 CONFIG_MWIFIEX=m
 CONFIG_MWIFIEX_SDIO=m
