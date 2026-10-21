@@ -7,7 +7,8 @@ Surface RT (2012, NVIDIA Tegra 3).
 > with A/B firmware updates over Wi-Fi (`mix upload`) that fall back if
 > new firmware doesn't validate. All four CPU cores and the 1 MB L2 cache
 > are on. The console is on the built-in screen, with the Touch/Type Cover
-> or a USB keyboard. The battery, audio, touchscreen and USB storage work.
+> or a USB keyboard. Battery status and USB storage work. The touchscreen
+> and the sound card are detected, but not tested yet.
 > As far as we know, nobody has run Nerves on a Surface RT before.
 
 ## Hardware
