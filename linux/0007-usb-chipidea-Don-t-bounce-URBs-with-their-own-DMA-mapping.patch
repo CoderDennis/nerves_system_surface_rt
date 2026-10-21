@@ -1,0 +1,42 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Dennis Palmer <dodava@gmail.com>
+Date: Wed, 21 Oct 2026 16:00:48 +0200
+Subject: [PATCH] usb: chipidea: Don't bounce URBs with their own DMA mapping
+
+Since commit 7ab8716713c9 ("usb: chipidea: Fix DMA overwrite for Tegra"),
+Tegra uses a bounce buffer for every transfer whose length isn't a
+multiple of 4. ci_hdrc_alloc_dma_aligned_buffer() swaps the bounce buffer
+into transfer_buffer even when the caller has set URB_NO_TRANSFER_DMA_MAP
+and supplied transfer_dma. usb_hcd_map_urb_for_dma() then doesn't map
+the bounce buffer, so the controller transfers to and from transfer_dma
+as usual. For IN transfers, ci_hdrc_free_dma_aligned_buffer() then copies
+the untouched bounce buffer over the data the device sent.
+
+usb-storage does this with its coherent I/O buffer, so on Tegra the
+13-byte CSW of every command is corrupted, and the 1-byte Get Max LUN
+reply comes back as garbage. USB flash drives get reset over and over
+and never appear as disks.
+
+Leave URBs with URB_NO_TRANSFER_DMA_MAP alone.
+
+Fixes: 7ab8716713c9 ("usb: chipidea: Fix DMA overwrite for Tegra")
+---
+ drivers/usb/chipidea/host.c | 6 ++++++
+ 1 file changed, 6 insertions(+)
+
+diff --git a/drivers/usb/chipidea/host.c b/drivers/usb/chipidea/host.c
+--- a/drivers/usb/chipidea/host.c
++++ b/drivers/usb/chipidea/host.c
+@@ -417,6 +417,12 @@
+ 	struct ci_hdrc_dma_aligned_buffer *temp;
+ 
+ 	if (urb->num_sgs || urb->sg || urb->transfer_buffer_length == 0)
++		return 0;
++	/*
++	 * The caller has mapped the buffer itself, and the controller uses
++	 * transfer_dma, not a bounce buffer swapped into transfer_buffer.
++	 */
++	if (urb->transfer_flags & URB_NO_TRANSFER_DMA_MAP)
+ 		return 0;
+ 	if (IS_ALIGNED((uintptr_t)urb->transfer_buffer, 4)
+ 	    && IS_ALIGNED(urb->transfer_buffer_length, 4))

@@ -194,6 +194,8 @@ each other. The built system ends up in
 - [x] Fall back to the previous firmware if new firmware isn't validated
 - [x] Use all four CPU cores (ACPI parking protocol, see `linux/0005`)
 - [x] Turn on the L2 cache (through the secure monitor, see `linux/0006`)
+- [x] USB flash drives (fixes a mainline ChipIdea bug on Tegra, see
+      `linux/0007`)
 - [x] Software reboot (restarts through the PMIC, see
       `linux/0003-mfd-tps65910-Restart-through-the-PMIC.patch`)
 
