@@ -1,0 +1,213 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Dennis Palmer <dodava@gmail.com>
+Date: Thu, 22 Oct 2026 15:57:40 +0200
+Subject: [PATCH] DEBUG: trace tegra-video stream start, VI clock override
+
+---
+ drivers/staging/media/tegra-video/csi.c     | 18 ++++++++++++++++++
+ drivers/staging/media/tegra-video/tegra20.c | 17 +++++++++++++++++
+ drivers/staging/media/tegra-video/vi.c      | 15 ++++++++++++++-
+ 3 files changed, 49 insertions(+), 1 deletion(-)
+
+diff --git a/drivers/staging/media/tegra-video/csi.c b/drivers/staging/media/tegra-video/csi.c
+index 568f2d162..7f9acefbb 100644
+--- a/drivers/staging/media/tegra-video/csi.c
++++ b/drivers/staging/media/tegra-video/csi.c
+@@ -5,6 +5,7 @@
+ 
+ #include <linux/clk.h>
+ #include <linux/clk/tegra.h>
++#include <linux/delay.h>
+ #include <linux/device.h>
+ #include <linux/host1x.h>
+ #include <linux/module.h>
+@@ -17,6 +18,9 @@
+ #include <media/v4l2-fwnode.h>
+ 
+ #include "csi.h"
++
++/* DEBUG (local only): print and give the log reader time to send it */
++#define TVDBG(fmt, ...) do { pr_warn("tvdbg: " fmt "\n", ##__VA_ARGS__); mdelay(50); } while (0)
+ #include "video.h"
+ 
+ #define MHZ			1000000
+@@ -295,14 +299,17 @@ static int tegra_csi_enable_stream(struct v4l2_subdev *subdev)
+ 	struct tegra_csi *csi = csi_chan->csi;
+ 	int ret, err;
+ 
++	TVDBG("csi enable_stream: resuming CSI");
+ 	ret = pm_runtime_resume_and_get(csi->dev);
+ 	if (ret < 0) {
+ 		dev_err(csi->dev, "failed to get runtime PM: %d\n", ret);
+ 		return ret;
+ 	}
+ 
++	TVDBG("csi enable_stream: CSI resumed, mipi=%p", csi_chan->mipi);
+ 	if (csi_chan->mipi) {
+ 		ret = tegra_mipi_enable(csi_chan->mipi);
++		TVDBG("csi enable_stream: tegra_mipi_enable returned %d", ret);
+ 		if (ret < 0) {
+ 			dev_err(csi->dev,
+ 				"failed to enable MIPI pads: %d\n", ret);
+@@ -317,6 +324,7 @@ static int tegra_csi_enable_stream(struct v4l2_subdev *subdev)
+ 		 * state during start of sensor streaming.
+ 		 */
+ 		ret = tegra_mipi_start_calibration(csi_chan->mipi);
++		TVDBG("csi enable_stream: start_calibration returned %d", ret);
+ 		if (ret < 0) {
+ 			dev_err(csi->dev,
+ 				"failed to start MIPI calibration: %d\n", ret);
+@@ -331,7 +339,9 @@ static int tegra_csi_enable_stream(struct v4l2_subdev *subdev)
+ 	 * So, start the CSI stream-on prior to sensor stream-on and
+ 	 * vice-versa for stream-off.
+ 	 */
++	TVDBG("csi enable_stream: csi_start_streaming");
+ 	ret = csi->ops->csi_start_streaming(csi_chan);
++	TVDBG("csi enable_stream: csi_start_streaming returned %d", ret);
+ 	if (ret < 0)
+ 		goto finish_calibration;
+ 
+@@ -347,12 +357,15 @@ static int tegra_csi_enable_stream(struct v4l2_subdev *subdev)
+ 		 * Wait for calibration to finish here after sensor subdev stream-on.
+ 		 */
+ 		src_subdev = tegra_channel_get_remote_source_subdev(chan);
++		TVDBG("csi enable_stream: sensor s_stream");
+ 		ret = v4l2_subdev_call(src_subdev, video, s_stream, true);
++		TVDBG("csi enable_stream: sensor s_stream returned %d", ret);
+ 
+ 		if (ret < 0 && ret != -ENOIOCTLCMD)
+ 			goto disable_csi_stream;
+ 
+ 		err = tegra_mipi_finish_calibration(csi_chan->mipi);
++		TVDBG("csi enable_stream: finish_calibration returned %d", err);
+ 		if (err < 0)
+ 			dev_warn(csi->dev, "MIPI calibration failed: %d\n", err);
+ 	}
+@@ -720,13 +733,18 @@ static int __maybe_unused csi_runtime_resume(struct device *dev)
+ 	struct tegra_csi *csi = dev_get_drvdata(dev);
+ 	int ret;
+ 
++	TVDBG("csi_runtime_resume: VDD");
+ 	ret = regulator_enable(csi->vdd);
+ 	if (ret) {
+ 		dev_err(dev, "failed to enable VDD supply: %d\n", ret);
+ 		return ret;
+ 	}
+ 
++	for (int i = 0; i < csi->soc->num_clks; i++)
++		TVDBG("csi_runtime_resume: clock %d %s rate %lu", i, csi->clks[i].id ?: "(null)",
++		      clk_get_rate(csi->clks[i].clk));
+ 	ret = clk_bulk_prepare_enable(csi->soc->num_clks, csi->clks);
++	TVDBG("csi_runtime_resume: clocks enabled: %d", ret);
+ 	if (ret < 0) {
+ 		dev_err(csi->dev, "failed to enable clocks: %d\n", ret);
+ 		goto disable_vdd;
+diff --git a/drivers/staging/media/tegra-video/tegra20.c b/drivers/staging/media/tegra-video/tegra20.c
+index eb1fc5b7e..6ff028d00 100644
+--- a/drivers/staging/media/tegra-video/tegra20.c
++++ b/drivers/staging/media/tegra-video/tegra20.c
+@@ -29,6 +29,11 @@
+ #include "vip.h"
+ #include "vi.h"
+ 
++/* DEBUG (local only): print and give the log reader time to send it */
++#define TVDBG(fmt, ...) do { pr_warn("tvdbg: " fmt "\n", ##__VA_ARGS__); mdelay(50); } while (0)
++
++static int tvdbg_writes = 120;
++
+ #define TEGRA_VI_SYNCPT_WAIT_TIMEOUT			msecs_to_jiffies(200)
+ 
+ #define TEGRA20_MIN_WIDTH	32U
+@@ -269,6 +274,10 @@ enum tegra_vi_out {
+ 
+ static void tegra20_vi_write(struct tegra_vi_channel *chan, unsigned int addr, u32 val)
+ {
++	if (tvdbg_writes > 0) {
++		tvdbg_writes--;
++		TVDBG("vi_write 0x%03x = 0x%08x", addr, val);
++	}
+ 	writel(val, chan->vi->iomem + addr);
+ }
+ 
+@@ -279,6 +288,10 @@ static int __maybe_unused tegra20_vi_read(struct tegra_vi_channel *chan, unsigne
+ 
+ static void tegra20_csi_write(struct tegra_csi_channel *csi_chan, unsigned int addr, u32 val)
+ {
++	if (tvdbg_writes > 0) {
++		tvdbg_writes--;
++		TVDBG("csi_write 0x%03x = 0x%08x", addr, val);
++	}
+ 	writel(val, csi_chan->csi->iomem + addr);
+ }
+ 
+@@ -289,6 +302,10 @@ static int __maybe_unused tegra20_csi_read(struct tegra_csi_channel *csi_chan, u
+ 
+ static void tegra20_mipi_write(struct tegra_csi *csi, unsigned int addr, u32 val)
+ {
++	if (tvdbg_writes > 0) {
++		tvdbg_writes--;
++		TVDBG("mipi_write 0x%03x = 0x%08x", addr, val);
++	}
+ 	writel(val, csi->iomem + addr);
+ }
+ 
+diff --git a/drivers/staging/media/tegra-video/vi.c b/drivers/staging/media/tegra-video/vi.c
+index 1d161661f..f8206dd8c 100644
+--- a/drivers/staging/media/tegra-video/vi.c
++++ b/drivers/staging/media/tegra-video/vi.c
+@@ -30,6 +30,13 @@
+ #include "vi.h"
+ #include "video.h"
+ 
++/* DEBUG (local only): print and give the log reader time to send it */
++#define TVDBG(fmt, ...) do { pr_warn("tvdbg: " fmt "\n", ##__VA_ARGS__); mdelay(50); } while (0)
++
++static unsigned long vi_clk_hz;
++module_param(vi_clk_hz, ulong, 0644);
++MODULE_PARM_DESC(vi_clk_hz, "DEBUG: VI clock rate override (0 = SoC maximum)");
++
+ #define MAX_CID_CONTROLS		3
+ 
+ /**
+@@ -262,13 +269,16 @@ static int tegra_channel_start_streaming(struct vb2_queue *vq, u32 count)
+ 	struct tegra_vi_channel *chan = vb2_get_drv_priv(vq);
+ 	int ret;
+ 
++	TVDBG("start_streaming: resuming VI");
+ 	ret = pm_runtime_resume_and_get(chan->vi->dev);
+ 	if (ret < 0) {
+ 		dev_err(chan->vi->dev, "failed to get runtime PM: %d\n", ret);
+ 		return ret;
+ 	}
+ 
++	TVDBG("start_streaming: VI resumed, calling vi_start_streaming");
+ 	ret = chan->vi->ops->vi_start_streaming(vq, count);
++	TVDBG("start_streaming: vi_start_streaming returned %d", ret);
+ 	if (ret < 0)
+ 		pm_runtime_put(chan->vi->dev);
+ 
+@@ -1419,17 +1429,20 @@ static int __maybe_unused vi_runtime_resume(struct device *dev)
+ 	struct tegra_vi *vi = dev_get_drvdata(dev);
+ 	int ret;
+ 
+-	ret = clk_set_rate(vi->clk, vi->soc->vi_max_clk_hz);
++	TVDBG("vi_runtime_resume: setting VI clock to %lu", vi_clk_hz ?: vi->soc->vi_max_clk_hz);
++	ret = clk_set_rate(vi->clk, vi_clk_hz ?: vi->soc->vi_max_clk_hz);
+ 	if (ret) {
+ 		dev_err(dev, "failed to set vi clock rate: %d\n", ret);
+ 		return ret;
+ 	}
+ 
++	TVDBG("vi_runtime_resume: VI clock rate %lu, enabling", clk_get_rate(vi->clk));
+ 	ret = clk_prepare_enable(vi->clk);
+ 	if (ret) {
+ 		dev_err(dev, "failed to enable vi clock: %d\n", ret);
+ 		return ret;
+ 	}
++	TVDBG("vi_runtime_resume: VI clock enabled");
+ 
+ 	return 0;
+ }
+-- 
+2.55.0
+
