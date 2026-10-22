@@ -59,13 +59,19 @@ What's done and what's next for
       mainline's imx111 driver, with NVIDIA's register settings). Camera 1
       is described on CSI-A: it probes and the media graph is complete
       (`ov9726 2-0010` -> CSI `channel@0` -> `/dev/video1`).
-- [ ] Camera capture. Starting a stream freezes the whole SoC: nothing
-      reaches the kernel log, and the PMIC watchdog reboots the Surface
-      ~100 s later (`wdt_last_boot: :watchdog`). Once, a single frame came
-      back instead, all zeros. Not the cause: VI's memory client isn't
-      held in hot reset. Next: build tegra-video as a module with debug
-      prints to find the access that hangs (VENC power-up, CSI pad clocks,
-      MIPI calibration or the first VI/CSI writes).
+- [ ] Camera capture. The sensor streams (mode_select=1, its frame counter
+      at 0x0005 counts ~30 fps, MCLK and supplies on), but CSI-A receives
+      nothing usable: the VI sees a frame start, then "mw ack syncpt
+      timeout", buffers stay zero, and the CSI pixel parser/CIL status
+      registers show no errors and no traffic. On CSI-B there's no frame
+      start at all. Afterwards the VI wedges and the SoC freezes (PMIC
+      watchdog reboot) when its registers are touched again, e.g. at stream
+      stop. Ruled out: VI clock/core voltage (375 MHz, core at 1.30 V), MC
+      hot reset, SMMU (identity mapped by design), buffers above 1 GB (CMA
+      moved to 0xac000000, no change). Next: CSI-A lane/CIL settings (e.g.
+      settle time, continuous clock), the VI_CORE_CONTROL Bayer routing,
+      and asking Svyatoslav Ryhel / Jonas Schwöbel (who wrote the Tegra30
+      CSI support) whether RAW10 over CSI was tested on Tegra30.
 - [ ] Second camera: both are OV9726 at the same I2C address, maybe an
       `i2c-mux-gpio` on the two power-down pins. Still unknown: which
       camera is the front one, and each camera's CSI port and lane count.
