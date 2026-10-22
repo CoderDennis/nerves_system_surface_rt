@@ -151,14 +151,11 @@ jailbreak USB page.
 
 ### Using the system
 
+The system is on [Hex](https://hex.pm/packages/nerves_system_surface_rt).
 Add it to a Nerves project's `mix.exs` with a target named `surface_rt`:
 
 ```elixir
-{:nerves_system_surface_rt,
- github: "CoderDennis/nerves_system_surface_rt",
- tag: "v0.2.1",
- runtime: false,
- targets: :surface_rt}
+{:nerves_system_surface_rt, "~> 0.2.1", runtime: false, targets: :surface_rt}
 ```
 
 Releases have a prebuilt system artifact, so `mix firmware` doesn't need to
