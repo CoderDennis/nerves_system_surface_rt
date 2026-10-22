@@ -1,7 +1,8 @@
 # nerves_system_surface_rt
 
-A [Nerves](https://nerves-project.org/) system for the original Microsoft
-Surface RT (2012, NVIDIA Tegra 3).
+A [Nerves](https://nerves-project.org/) system for the original [Microsoft
+Surface RT](https://en.wikipedia.org/wiki/Surface_(2012_tablet)) (2012, NVIDIA
+Tegra 3).
 
 > **Status:** Nerves runs from the internal eMMC and boots through GRUB,
 > with A/B firmware updates over Wi-Fi (`mix upload`) that fall back if
