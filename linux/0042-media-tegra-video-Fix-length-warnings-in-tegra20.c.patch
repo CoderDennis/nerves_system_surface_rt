@@ -1,0 +1,42 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Faisal Mukhtar <mukhtarfaisal03@gmail.com>
+Date: Wed, 22 Jul 2026 22:47:22 +0500
+Subject: [PATCH] media: tegra-video: Fix length warnings in tegra20.c
+
+Wrap long function arguments under the starting
+parentheses because of line length style warning
+reported by checkpatch.pl
+
+Signed-off-by: Faisal Mukhtar <mukhtarfaisal03@gmail.com>
+Signed-off-by: Hans Verkuil <hverkuil+cisco@kernel.org>
+---
+ drivers/staging/media/tegra-video/tegra20.c | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/drivers/staging/media/tegra-video/tegra20.c b/drivers/staging/media/tegra-video/tegra20.c
+index e513e6ccb..eb1fc5b7e 100644
+--- a/drivers/staging/media/tegra-video/tegra20.c
++++ b/drivers/staging/media/tegra-video/tegra20.c
+@@ -552,7 +552,8 @@ static void tegra20_channel_vi_buffer_setup(struct tegra_vi_channel *chan,
+ 	case V4L2_PIX_FMT_YUYV:
+ 	case V4L2_PIX_FMT_YVYU:
+ 		tegra20_vi_write(chan, TEGRA_VI_VB0_BASE_ADDRESS(TEGRA_VI_OUT_1),  base);
+-		tegra20_vi_write(chan, TEGRA_VI_VB0_START_ADDRESS(TEGRA_VI_OUT_1), base + chan->start_offset);
++		tegra20_vi_write(chan, TEGRA_VI_VB0_START_ADDRESS(TEGRA_VI_OUT_1),
++				 base + chan->start_offset);
+ 		break;
+ 	/* RAW8 */
+ 	case V4L2_PIX_FMT_SRGGB8:
+@@ -565,7 +566,8 @@ static void tegra20_channel_vi_buffer_setup(struct tegra_vi_channel *chan,
+ 	case V4L2_PIX_FMT_SGBRG10:
+ 	case V4L2_PIX_FMT_SBGGR10:
+ 		tegra20_vi_write(chan, TEGRA_VI_VB0_BASE_ADDRESS(TEGRA_VI_OUT_2),  base);
+-		tegra20_vi_write(chan, TEGRA_VI_VB0_START_ADDRESS(TEGRA_VI_OUT_2), base + chan->start_offset);
++		tegra20_vi_write(chan, TEGRA_VI_VB0_START_ADDRESS(TEGRA_VI_OUT_2),
++				 base + chan->start_offset);
+ 		break;
+ 	}
+ }
+-- 
+2.55.0
+

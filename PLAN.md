@@ -50,10 +50,14 @@ What's done and what's next for
       answer on I2C with MCLK running: the `vi_sensor` clock (UEFI sets it
       to 24 MHz) and the `csus` gate, on pin `cam_mclk_pcc0` (function
       `vi_alt3`). ACPI also lists address 0x72, but nothing answers there.
+- [x] Tegra30 camera interface (VI/CSI): Svyatoslav Ryhel's "tegra-video:
+      add CSI support for Tegra20 and Tegra30" series, merged in Linux 7.1,
+      and its clock, DT and follow-up fixes are backported in
+      `linux/0015`-`0042`. The CSI block probes. VI only probes once the
+      device tree describes a sensor connected to it.
 - [ ] Camera capture. Needs a new OV9726 V4L2 sensor driver (none in
-      mainline; NVIDIA's old Tegra 3 kernels had one with register tables)
-      and Tegra30 VI/CSI support, which isn't in mainline either
-      (Svyatoslav Ryhel's "tegra-video: add CSI support for Tegra20 and
-      Tegra30" series, not merged as of v7, March 2026). Still unknown:
-      which camera is the front one, and each camera's CSI port and lane
+      mainline; NVIDIA's old Tegra 3 kernels had one with register tables),
+      and a way to describe two sensors at the same I2C address, maybe an
+      `i2c-mux-gpio` on the two power-down pins. Still unknown: which
+      camera is the front one, and each camera's CSI port (A or B) and lane
       count.

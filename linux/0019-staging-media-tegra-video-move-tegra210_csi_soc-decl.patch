@@ -1,0 +1,57 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Sun Jian <sun.jian.kdev@gmail.com>
+Date: Fri, 2 Jan 2026 19:45:00 +0800
+Subject: [PATCH] staging: media: tegra-video: move tegra210_csi_soc
+ declaration to csi.h
+
+Sparse warns that tegra210_csi_soc is not declared in tegra210.c.
+The symbol is referenced from csi.c, so it must remain global. Move the
+declaration to csi.h so users see it via the header and avoid extern
+declarations in .c files.
+
+SPARSE: drivers/staging/media/tegra-video/tegra210.c:1214:28: warning:
+ symbol 'tegra210_csi_soc' was not declared. Should it be static?
+
+No functional change intended.
+
+Suggested-by: Luca Ceresoli <luca.ceresoli@bootlin.com>
+Signed-off-by: Sun Jian <sun.jian.kdev@gmail.com>
+Signed-off-by: Hans Verkuil <hverkuil+cisco@kernel.org>
+---
+ drivers/staging/media/tegra-video/csi.c | 4 ----
+ drivers/staging/media/tegra-video/csi.h | 4 ++++
+ 2 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/drivers/staging/media/tegra-video/csi.c b/drivers/staging/media/tegra-video/csi.c
+index 604185c00..3c3f6e3fd 100644
+--- a/drivers/staging/media/tegra-video/csi.c
++++ b/drivers/staging/media/tegra-video/csi.c
+@@ -835,10 +835,6 @@ static void tegra_csi_remove(struct platform_device *pdev)
+ 	pm_runtime_disable(&pdev->dev);
+ }
+ 
+-#if defined(CONFIG_ARCH_TEGRA_210_SOC)
+-extern const struct tegra_csi_soc tegra210_csi_soc;
+-#endif
+-
+ static const struct of_device_id tegra_csi_of_id_table[] = {
+ #if defined(CONFIG_ARCH_TEGRA_210_SOC)
+ 	{ .compatible = "nvidia,tegra210-csi", .data = &tegra210_csi_soc },
+diff --git a/drivers/staging/media/tegra-video/csi.h b/drivers/staging/media/tegra-video/csi.h
+index 3e6e5ee1b..609c5952e 100644
+--- a/drivers/staging/media/tegra-video/csi.h
++++ b/drivers/staging/media/tegra-video/csi.h
+@@ -130,6 +130,10 @@ struct tegra_csi_soc {
+ 	unsigned int tpg_frmrate_table_size;
+ };
+ 
++#if defined(CONFIG_ARCH_TEGRA_210_SOC)
++extern const struct tegra_csi_soc tegra210_csi_soc;
++#endif
++
+ /**
+  * struct tegra_csi - NVIDIA Tegra CSI device structure
+  *
+-- 
+2.55.0
+
