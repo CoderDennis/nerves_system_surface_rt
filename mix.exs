@@ -85,7 +85,14 @@ defmodule NervesSystemSurfaceRt.MixProject do
 
   defp docs do
     [
-      extras: ["README.md", "CHANGELOG.md"],
+      extras: [
+        "README.md",
+        "JAILBREAK.md",
+        "INSTALLING.md",
+        "PORTING.md",
+        "PLAN.md",
+        "CHANGELOG.md"
+      ],
       main: "readme",
       skip_undefined_reference_warnings_on: ["CHANGELOG.md"]
     ]
@@ -110,10 +117,14 @@ defmodule NervesSystemSurfaceRt.MixProject do
       "fwup-ops.conf",
       "fwup.conf",
       "grub.cfg",
+      "INSTALLING.md",
+      "JAILBREAK.md",
       "LICENSES/*",
       "mix.exs",
       "nerves_defconfig",
       "post-build.sh",
+      "PLAN.md",
+      "PORTING.md",
       "post-createfs.sh",
       "README.md",
       "REUSE.toml",

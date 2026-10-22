@@ -18,9 +18,9 @@ What's done and what's next for
       can't see the microSD slot, so Nerves can't boot from microSD.
 - [x] Wi-Fi with VintageNet and SSH access
 - [x] Display output (Tegra DRM console on the built-in screen)
-- [x] Install to eMMC (see [Installing](README.md#installing))
+- [x] Install to eMMC (see [INSTALLING.md](INSTALLING.md))
 - [ ] An easier first install (today it needs a second, temporary boot
-      setup, see [Installing](README.md#installing)). Now that USB flash
+      setup, see [INSTALLING.md](INSTALLING.md)). Now that USB flash
       drives work, Nerves could probably run from a USB stick instead of
       the microSD card, possibly just `mix burn` to a stick and boot it with
       Volume Down + Power. The stick has the same partition IDs as the eMMC
