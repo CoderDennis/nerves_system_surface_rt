@@ -51,9 +51,11 @@ thermal zones, L2 cache and working PMIC/DVFS. Its `-efi.dts` is incomplete
   to fail. `vdec` and `venc` are changed the same way to be safe.
 - The camera interface (`vi@54080000` and its `csi@800`) is enabled.
   The CSI node comes from the mainline tegra30.dtsi patch backported in
-  `linux/0015`, and the driver from `linux/0016`-`linux/0042`. No sensors
-  are described yet: both cameras are OV9726 sensors at the same I2C
-  address (0x10 on I2C3), and mainline has no OV9726 driver.
+  `linux/0015`, and the driver from `linux/0016`-`linux/0042`. Both
+  cameras are OV9726 sensors at the same I2C address (0x10 on I2C3), so
+  only camera 1 is described, on CSI-A with one lane (a guess). It uses
+  the new OV9726 driver (`linux/0043`-`0044`). Its 1.8 V I/O supply is a
+  new fixed regulator on GPIO BB4; its 2.8 V supply is `vdd_cam1_ldo`.
 
 Both files compile with `dtc` against Linux 6.18.36. The 5 warnings come
 from the shared Tegra 3 `.dtsi` files; mainline's `tegra30-asus-tf700t`

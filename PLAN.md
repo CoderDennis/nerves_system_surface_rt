@@ -55,9 +55,17 @@ What's done and what's next for
       and its clock, DT and follow-up fixes are backported in
       `linux/0015`-`0042`. The CSI block probes. VI only probes once the
       device tree describes a sensor connected to it.
-- [ ] Camera capture. Needs a new OV9726 V4L2 sensor driver (none in
-      mainline; NVIDIA's old Tegra 3 kernels had one with register tables),
-      and a way to describe two sensors at the same I2C address, maybe an
+- [x] OV9726 sensor driver (`linux/0043`-`0044`, new, modeled on
+      mainline's imx111 driver, with NVIDIA's register settings). Camera 1
+      is described on CSI-A: it probes and the media graph is complete
+      (`ov9726 2-0010` -> CSI `channel@0` -> `/dev/video1`).
+- [ ] Camera capture. Starting a stream freezes the whole SoC: nothing
+      reaches the kernel log, and the PMIC watchdog reboots the Surface
+      ~100 s later (`wdt_last_boot: :watchdog`). Once, a single frame came
+      back instead, all zeros. Not the cause: VI's memory client isn't
+      held in hot reset. Next: build tegra-video as a module with debug
+      prints to find the access that hangs (VENC power-up, CSI pad clocks,
+      MIPI calibration or the first VI/CSI writes).
+- [ ] Second camera: both are OV9726 at the same I2C address, maybe an
       `i2c-mux-gpio` on the two power-down pins. Still unknown: which
-      camera is the front one, and each camera's CSI port (A or B) and lane
-      count.
+      camera is the front one, and each camera's CSI port and lane count.

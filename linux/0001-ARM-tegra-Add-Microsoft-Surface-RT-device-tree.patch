@@ -24,8 +24,9 @@ branch, commit 25a5100, Feb 2022) and adapted to mainline:
 - Describe the CPUs' ACPI parking protocol mailboxes in the -efi
   variant, from the firmware's ACPI MADT. UEFI parks the secondary CPUs
   there, and the Tegra parking protocol patch starts them through them.
-- Enable the camera interface (VI and its CSI block). The CSI node
-  comes from the tegra30.dtsi CSI patch.
+- Enable the camera interface (VI and its CSI block), and describe
+  camera 1, an OV9726, on CSI-A. The CSI node comes from the
+  tegra30.dtsi CSI patch.
 
 The -efi variant is for booting through the UEFI firmware after the
 Yahallo jailbreak. It disables the PMIC core regulator, CPU DVFS and
@@ -33,8 +34,8 @@ CPU idle, which don't work there.
 ---
  arch/arm/boot/dts/nvidia/Makefile             |   2 +
  .../tegra30-microsoft-surface-rt-efi.dts      | 118 +++
- .../nvidia/tegra30-microsoft-surface-rt.dts   | 680 ++++++++++++++++++
- 3 files changed, 800 insertions(+)
+ .../nvidia/tegra30-microsoft-surface-rt.dts   | 763 ++++++++++++++++++
+ 3 files changed, 883 insertions(+)
  create mode 100644 arch/arm/boot/dts/nvidia/tegra30-microsoft-surface-rt-efi.dts
  create mode 100644 arch/arm/boot/dts/nvidia/tegra30-microsoft-surface-rt.dts
 
@@ -176,10 +177,10 @@ index 000000000..dfad026f7
 +};
 diff --git a/arch/arm/boot/dts/nvidia/tegra30-microsoft-surface-rt.dts b/arch/arm/boot/dts/nvidia/tegra30-microsoft-surface-rt.dts
 new file mode 100644
-index 000000000..f48ac62e6
+index 000000000..b1fd4a65d
 --- /dev/null
 +++ b/arch/arm/boot/dts/nvidia/tegra30-microsoft-surface-rt.dts
-@@ -0,0 +1,680 @@
+@@ -0,0 +1,763 @@
 +// SPDX-License-Identifier: GPL-2.0
 +
 +/dts-v1/;
@@ -188,6 +189,7 @@ index 000000000..f48ac62e6
 +#include "tegra30-cpu-opp.dtsi"
 +#include "tegra30-cpu-opp-microvolt.dtsi"
 +#include <dt-bindings/input/input.h>
++#include <dt-bindings/media/video-interfaces.h>
 +
 +/ {
 +	model = "Microsoft Surface RT";
@@ -343,7 +345,38 @@ index 000000000..f48ac62e6
 +	i2c@7000c500 {
 +		status = "okay";
 +		clock-frequency = <100000>;
-+		/* Cams at 0x10 and 0x72 */
++
++		/*
++		 * Both cameras are OV9726 sensors at 0x10, so only one of them
++		 * can be described. This is camera 1 (2.8 V LDO on GPIO R6,
++		 * reset on BB0). The ACPI tables also list 0x72, but nothing
++		 * answers there.
++		 */
++		camera@10 {
++			compatible = "ovti,ov9726";
++			reg = <0x10>;
++
++			clocks = <&tegra_car TEGRA30_CLK_CSUS>;
++			assigned-clocks = <&tegra_car TEGRA30_CLK_VI_SENSOR>,
++					  <&tegra_car TEGRA30_CLK_CSUS>;
++			assigned-clock-rates = <24000000>;
++			assigned-clock-parents = <&tegra_car TEGRA30_CLK_PLL_P>,
++						 <&tegra_car TEGRA30_CLK_VI_SENSOR>;
++
++			reset-gpios = <&gpio TEGRA_GPIO(BB, 0) GPIO_ACTIVE_LOW>;
++
++			dovdd-supply = <&vdd_1v8_cam>;
++			avdd-supply = <&vdd_cam1_ldo_reg>;
++
++			port {
++				camera1_output: endpoint {
++					data-lanes = <1>;
++					bus-type = <MEDIA_BUS_TYPE_CSI2_DPHY>;
++					link-frequencies = /bits/ 64 <210000000>;
++					remote-endpoint = <&csia_input>;
++				};
++			};
++		};
 +	};
 +
 +	/* HDMI DisplayDataChannel - I2C4 */
@@ -616,14 +649,54 @@ index 000000000..f48ac62e6
 +		};
 +
 +		/*
-+		 * Camera interface. Both cameras are OV9726 sensors on MIPI
-+		 * CSI, controlled over I2C3 at 0x10.
++		 * Camera interface. Camera 1 on CSI-A, one data lane. Which
++		 * CSI port each camera uses isn't known yet.
 +		 */
 +		vi@54080000 {
 +			status = "okay";
 +
 +			csi@800 {
 +				status = "okay";
++
++				/* CSI-A */
++				channel@0 {
++					reg = <0>;
++
++					nvidia,mipi-calibrate = <&csi 0>; /* CSIA pad */
++
++					#address-cells = <1>;
++					#size-cells = <0>;
++
++					port@0 {
++						reg = <0>;
++
++						csia_input: endpoint {
++							data-lanes = <1>;
++							remote-endpoint = <&camera1_output>;
++						};
++					};
++
++					port@1 {
++						reg = <1>;
++
++						csia_output: endpoint {
++							remote-endpoint = <&vi_ppa_input>;
++						};
++					};
++				};
++			};
++
++			ports {
++				#address-cells = <1>;
++				#size-cells = <0>;
++
++				port@0 {
++					reg = <0>;
++
++					vi_ppa_input: endpoint {
++						remote-endpoint = <&csia_output>;
++					};
++				};
 +			};
 +		};
 +	};
@@ -846,6 +919,17 @@ index 000000000..f48ac62e6
 +		enable-active-high;
 +		gpio = <&gpio TEGRA_GPIO(R, 7) GPIO_ACTIVE_HIGH>;
 +		vin-supply = <&vdd_5v0_sys>;
++	};
++
++	/* 1.8 V I/O supply of both cameras ("E1V8" in the ACPI tables) */
++	vdd_1v8_cam: regulator-cam-1v8 {
++		compatible = "regulator-fixed";
++		regulator-name = "vdd_1v8_cam";
++		regulator-min-microvolt = <1800000>;
++		regulator-max-microvolt = <1800000>;
++		enable-active-high;
++		gpio = <&gpio TEGRA_GPIO(BB, 4) GPIO_ACTIVE_HIGH>;
++		vin-supply = <&vdd_1v8_sys>;
 +	};
 +
 +	regulator-sensors {

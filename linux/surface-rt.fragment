@@ -79,7 +79,9 @@ CONFIG_SND_SOC_TEGRA_WM8962=y
 
 # Camera interface (VI and CSI). Tegra30 support was added to the staging
 # tegra-video driver in Linux 7.1 and is backported in linux/0015-0042.
+# Both cameras are OV9726 sensors (linux/0043-0044, not in mainline).
 CONFIG_VIDEO_TEGRA=y
+CONFIG_VIDEO_OV9726=y
 
 # Hardware watchdog, petted by nerves_heart. Use the PMIC's watchdog
 # (linux/0014), which power-cycles the Surface RT. The Tegra watchdog's
