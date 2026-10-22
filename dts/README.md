@@ -49,11 +49,6 @@ thermal zones, L2 cache and working PMIC/DVFS. Its `-efi.dts` is incomplete
   (`failed to flush 3D2 DMA`), the PMC probe fails with `-EBUSY`, and the
   SD card, USB, Wi-Fi and backlight never probe. Only `td2` has been seen
   to fail. `vdec` and `venc` are changed the same way to be safe.
-- The camera interface (`vi@54080000` and its `csi@800`) is enabled.
-  The CSI node comes from the mainline tegra30.dtsi patch backported in
-  `linux/0015`, and the driver from `linux/0016`-`linux/0042`. No sensors
-  are described yet: both cameras are OV9726 sensors at the same I2C
-  address (0x10 on I2C3), and mainline has no OV9726 driver.
 
 Both files compile with `dtc` against Linux 6.18.36. The 5 warnings come
 from the shared Tegra 3 `.dtsi` files; mainline's `tegra30-asus-tf700t`

@@ -24,17 +24,15 @@ branch, commit 25a5100, Feb 2022) and adapted to mainline:
 - Describe the CPUs' ACPI parking protocol mailboxes in the -efi
   variant, from the firmware's ACPI MADT. UEFI parks the secondary CPUs
   there, and the Tegra parking protocol patch starts them through them.
-- Enable the camera interface (VI and its CSI block). The CSI node
-  comes from the tegra30.dtsi CSI patch.
 
 The -efi variant is for booting through the UEFI firmware after the
 Yahallo jailbreak. It disables the PMIC core regulator, CPU DVFS and
 CPU idle, which don't work there.
 ---
  arch/arm/boot/dts/nvidia/Makefile             |   2 +
- .../tegra30-microsoft-surface-rt-efi.dts      | 118 +++
- .../nvidia/tegra30-microsoft-surface-rt.dts   | 680 ++++++++++++++++++
- 3 files changed, 800 insertions(+)
+ .../tegra30-microsoft-surface-rt-efi.dts      | 118 ++++
+ .../nvidia/tegra30-microsoft-surface-rt.dts   | 668 ++++++++++++++++++
+ 3 files changed, 788 insertions(+)
  create mode 100644 arch/arm/boot/dts/nvidia/tegra30-microsoft-surface-rt-efi.dts
  create mode 100644 arch/arm/boot/dts/nvidia/tegra30-microsoft-surface-rt.dts
 
@@ -176,10 +174,10 @@ index 000000000..dfad026f7
 +};
 diff --git a/arch/arm/boot/dts/nvidia/tegra30-microsoft-surface-rt.dts b/arch/arm/boot/dts/nvidia/tegra30-microsoft-surface-rt.dts
 new file mode 100644
-index 000000000..f48ac62e6
+index 000000000..30fc69832
 --- /dev/null
 +++ b/arch/arm/boot/dts/nvidia/tegra30-microsoft-surface-rt.dts
-@@ -0,0 +1,680 @@
+@@ -0,0 +1,668 @@
 +// SPDX-License-Identifier: GPL-2.0
 +
 +/dts-v1/;
@@ -612,18 +610,6 @@ index 000000000..f48ac62e6
 +						bus-width = <24>;
 +					};
 +				};
-+			};
-+		};
-+
-+		/*
-+		 * Camera interface. Both cameras are OV9726 sensors on MIPI
-+		 * CSI, controlled over I2C3 at 0x10.
-+		 */
-+		vi@54080000 {
-+			status = "okay";
-+
-+			csi@800 {
-+				status = "okay";
 +			};
 +		};
 +	};

@@ -77,10 +77,6 @@ CONFIG_I2C_HOTPLUG_GPIO=y
 CONFIG_BATTERY_CHARGER_SURFACE_RT=y
 CONFIG_SND_SOC_TEGRA_WM8962=y
 
-# Camera interface (VI and CSI). Tegra30 support was added to the staging
-# tegra-video driver in Linux 7.1 and is backported in linux/0015-0042.
-CONFIG_VIDEO_TEGRA=y
-
 # Hardware watchdog, petted by nerves_heart. Use the PMIC's watchdog
 # (linux/0014), which power-cycles the Surface RT. The Tegra watchdog's
 # reset goes through the PMC and leaves the screen black instead of
