@@ -17,6 +17,7 @@ SPDX-License-Identifier = "CC0-1.0"
 
 [[annotations]]
 path = [
+ "PLAN.md",
  "README.md",
  "dts/README.md"
 ]
