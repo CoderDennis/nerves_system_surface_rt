@@ -41,7 +41,19 @@ What's done and what's next for
 - [x] Hardware watchdog: the PMIC's watchdog power-cycles the Surface if
       the system hangs (`linux/0014`). The Tegra watchdog's reset doesn't
       bring it back.
-- [ ] Research the front and rear cameras. They don't seem to be USB:
-      probably camera sensors on the Tegra 3's MIPI CSI interface. Start by
-      finding the sensors in the firmware's ACPI tables. The community
-      kernels don't support them either.
+- [x] Identify the front and rear cameras. Both are OmniVision OV9726
+      sensors (chip ID 0x9726) at address 0x10 on I2C3 (`i2c@7000c500`),
+      so only one can be powered at a time. Power sequence from the ACPI
+      method `\_SB.GFXC.CAM1.CPWR`: 1.8 V I/O on GPIO BB4, then each
+      camera's 2.8 V LDO (R6, R7), then its reset (BB0, BB7, active low).
+      The power-down pins are S1 and R4, active high. The sensors only
+      answer on I2C with MCLK running: the `vi_sensor` clock (UEFI sets it
+      to 24 MHz) and the `csus` gate, on pin `cam_mclk_pcc0` (function
+      `vi_alt3`). ACPI also lists address 0x72, but nothing answers there.
+- [ ] Camera capture. Needs a new OV9726 V4L2 sensor driver (none in
+      mainline; NVIDIA's old Tegra 3 kernels had one with register tables)
+      and Tegra30 VI/CSI support, which isn't in mainline either
+      (Svyatoslav Ryhel's "tegra-video: add CSI support for Tegra20 and
+      Tegra30" series, not merged as of v7, March 2026). Still unknown:
+      which camera is the front one, and each camera's CSI port and lane
+      count.
