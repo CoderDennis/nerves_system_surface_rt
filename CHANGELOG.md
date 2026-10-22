@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+* Changes
+  * Removed the `clk_ignore_unused` and `pd_ignore_unused` kernel
+    arguments. They kept the screen on while the Tegra display driver
+    wasn't used during bring-up. The display driver now claims the clocks
+    and power domains it needs. Tested on the device: the screen, Type
+    Cover, touchscreen, audio, battery and Wi-Fi all still work.
+
 ## v0.2.0 - 2026-10-21
 
 The first version that runs on the Surface RT. Nerves installs to the
