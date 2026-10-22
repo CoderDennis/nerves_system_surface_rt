@@ -210,7 +210,11 @@ each other. The built system ends up in
 - [x] Display output (Tegra DRM console on the built-in screen)
 - [x] Install to eMMC (see [Installing](#installing))
 - [ ] An easier first install (today it needs a second, temporary boot
-      setup, see below)
+      setup, see below). Now that USB flash drives work, Nerves could
+      probably run from a USB stick instead of the microSD card, possibly
+      just `mix burn` to a stick and boot it with Volume Down + Power. The
+      stick has the same partition IDs as the eMMC install, so it would have
+      to come out afterwards. Not tried yet.
 - [x] Fall back to the previous firmware if new firmware isn't validated
 - [x] Use all four CPU cores (ACPI parking protocol, see `linux/0005`)
 - [x] Turn on the L2 cache (through the secure monitor, see `linux/0006`)
