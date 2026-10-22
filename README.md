@@ -231,9 +231,8 @@ each other. The built system ends up in
 
 ### Installing
 
-The UEFI firmware can't boot from microSD, and Linux can't use a USB stick
-as a disk yet, so Nerves has to be installed on the internal eMMC. This
-erases the eMMC, including Windows. The first install currently needs a
+The UEFI firmware can't boot from microSD, so Nerves is installed on the
+internal eMMC. This erases the eMMC, including Windows. The first install currently needs a
 second, temporary boot setup:
 
 1. `mix burn` the firmware to a microSD card.
