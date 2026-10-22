@@ -1,0 +1,310 @@
+From 75ee44cda608e4495c351650653a9944fa4cc806 Mon Sep 17 00:00:00 2001
+From: Dennis Palmer <dodava@gmail.com>
+Date: Thu, 22 Oct 2026 10:27:17 +0200
+Subject: [PATCH] watchdog: Add TPS65911 watchdog driver
+
+The TPS65911 PMIC has a watchdog that switches the system off when it
+isn't serviced, and back on again if the DEV_ON bit is set. Add a
+driver for it, as an MFD cell of the TPS65910/65911 driver.
+
+On the Microsoft Surface RT, booted through UEFI, the Tegra watchdog's
+reset goes through the PMC, and like the PMC's main reset it doesn't
+restart the device. The PMIC watchdog power-cycles it instead.
+
+The watchdog runs in periodic mode: the PMIC raises its watchdog
+interrupt once per period and switches off if the interrupt is still
+pending at the end of the next period. A ping clears the interrupt.
+
+The watchdog setting survives the PMIC's own switch-off and is only
+cleared by a general reset, so after the watchdog fires it's still
+running at the next boot. The driver then keeps it running (and the
+watchdog core pings it until user space takes over). It stops the
+watchdog on reboot and power-off, so finding it running at probe is
+reported as WDIOF_CARDRESET.
+---
+ drivers/mfd/tps65910.c          |  17 +++
+ drivers/watchdog/Kconfig        |  12 +++
+ drivers/watchdog/Makefile       |   1 +
+ drivers/watchdog/tps65911_wdt.c | 177 ++++++++++++++++++++++++++++++++
+ include/linux/mfd/tps65910.h    |   7 ++
+ 5 files changed, 214 insertions(+)
+ create mode 100644 drivers/watchdog/tps65911_wdt.c
+
+diff --git a/drivers/mfd/tps65910.c b/drivers/mfd/tps65910.c
+index c40d22a..132e97f 100644
+--- a/drivers/mfd/tps65910.c
++++ b/drivers/mfd/tps65910.c
+@@ -47,6 +47,12 @@ static const struct mfd_cell tps65910s[] = {
+ 	},
+ };
+ 
++static const struct mfd_cell tps65911s[] = {
++	{
++		.name = "tps65911-watchdog",
++	},
++};
++
+ 
+ static const struct regmap_irq tps65911_irqs[] = {
+ 	/* INT_STS */
+@@ -543,6 +549,17 @@ static int tps65910_i2c_probe(struct i2c_client *i2c)
+ 		return ret;
+ 	}
+ 
++	if (tps65910_chip_id(tps65910) == TPS65911) {
++		ret = devm_mfd_add_devices(tps65910->dev, -1,
++					   tps65911s, ARRAY_SIZE(tps65911s),
++					   NULL, 0, NULL);
++		if (ret < 0) {
++			dev_err(&i2c->dev, "mfd_add_devices failed: %d\n",
++				ret);
++			return ret;
++		}
++	}
++
+ 	return ret;
+ }
+ 
+diff --git a/drivers/watchdog/Kconfig b/drivers/watchdog/Kconfig
+index 05008d9..9a31651 100644
+--- a/drivers/watchdog/Kconfig
++++ b/drivers/watchdog/Kconfig
+@@ -710,6 +710,18 @@ config TWL4030_WATCHDOG
+ 	  Support for TI TWL4030 watchdog.  Say 'Y' here to enable the
+ 	  watchdog timer support for TWL4030 chips.
+ 
++config TPS65911_WATCHDOG
++	tristate "TI TPS65911 Watchdog"
++	depends on MFD_TPS65910
++	select WATCHDOG_CORE
++	help
++	  Support for the watchdog in the TI TPS65911 PMIC. When it expires,
++	  the PMIC switches the system off, and back on if the DEV_ON bit is
++	  set.
++
++	  To compile this driver as a module, choose M here: the
++	  module will be called tps65911_wdt.
++
+ config STMP3XXX_RTC_WATCHDOG
+ 	tristate "Freescale STMP3XXX & i.MX23/28 watchdog"
+ 	depends on RTC_DRV_STMP || COMPILE_TEST
+diff --git a/drivers/watchdog/Makefile b/drivers/watchdog/Makefile
+index b680e4d..b834417 100644
+--- a/drivers/watchdog/Makefile
++++ b/drivers/watchdog/Makefile
+@@ -47,6 +47,7 @@ obj-$(CONFIG_AT91SAM9X_WATCHDOG) += at91sam9_wdt.o
+ obj-$(CONFIG_CADENCE_WATCHDOG) += cadence_wdt.o
+ obj-$(CONFIG_OMAP_WATCHDOG) += omap_wdt.o
+ obj-$(CONFIG_TWL4030_WATCHDOG) += twl4030_wdt.o
++obj-$(CONFIG_TPS65911_WATCHDOG) += tps65911_wdt.o
+ obj-$(CONFIG_21285_WATCHDOG) += wdt285.o
+ obj-$(CONFIG_977_WATCHDOG) += wdt977.o
+ obj-$(CONFIG_FTWDT010_WATCHDOG) += ftwdt010_wdt.o
+diff --git a/drivers/watchdog/tps65911_wdt.c b/drivers/watchdog/tps65911_wdt.c
+new file mode 100644
+index 0000000..7140ac7
+--- /dev/null
++++ b/drivers/watchdog/tps65911_wdt.c
+@@ -0,0 +1,177 @@
++// SPDX-License-Identifier: GPL-2.0
++/*
++ * Watchdog driver for the TI TPS65911 PMIC
++ *
++ * In periodic mode, the PMIC raises its watchdog interrupt once per
++ * period. If the interrupt is still pending at the end of the next
++ * period, the PMIC switches the system off, and back on again if the
++ * DEV_ON bit is set. Pinging the watchdog clears the interrupt, so the
++ * system is switched off between one and two periods after the last ping.
++ *
++ * The watchdog setting survives the PMIC's own switch-off. Only a general
++ * reset of the PMIC (e.g. a long press of the power button) clears it, so
++ * after the watchdog has fired, it's still running when the system boots
++ * again. This driver stops it on reboot and power-off, so finding it
++ * running at probe means that it most likely fired.
++ */
++
++#include <linux/kernel.h>
++#include <linux/mfd/tps65910.h>
++#include <linux/module.h>
++#include <linux/platform_device.h>
++#include <linux/regmap.h>
++#include <linux/watchdog.h>
++
++/* WTCHDG_TIME to period in seconds. 0 disables the watchdog. */
++static const unsigned int tps65911_wdt_periods[] = {
++	0, 5, 10, 20, 40, 60, 80, 100
++};
++
++#define TPS65911_WDT_SEL_MIN		1
++#define TPS65911_WDT_SEL_MAX		(ARRAY_SIZE(tps65911_wdt_periods) - 1)
++#define TPS65911_WDT_DEFAULT_TIMEOUT	100
++
++static unsigned int tps65911_wdt_timeout_to_sel(unsigned int timeout)
++{
++	unsigned int i;
++
++	for (i = TPS65911_WDT_SEL_MIN; i <= TPS65911_WDT_SEL_MAX; i++) {
++		if (tps65911_wdt_periods[i] >= timeout)
++			return i;
++	}
++
++	return TPS65911_WDT_SEL_MAX;
++}
++
++static int tps65911_wdt_clear_irq(struct tps65910 *tps65910)
++{
++	/* The interrupt status bits are cleared by writing 1 */
++	return regmap_write(tps65910->regmap, TPS65910_INT_STS3,
++			    INT_STS3_WTCHDG_IT_MASK);
++}
++
++static int tps65911_wdt_write_sel(struct tps65910 *tps65910, unsigned int sel)
++{
++	/* WTCHDG_MODE = 0 selects periodic mode */
++	return regmap_write(tps65910->regmap, TPS65911_WATCHDOG,
++			    sel << WATCHDOG_WTCHDG_TIME_SHIFT);
++}
++
++static int tps65911_wdt_start(struct watchdog_device *wdd)
++{
++	struct tps65910 *tps65910 = watchdog_get_drvdata(wdd);
++	int ret;
++
++	ret = tps65911_wdt_clear_irq(tps65910);
++	if (ret)
++		return ret;
++
++	return tps65911_wdt_write_sel(tps65910,
++				      tps65911_wdt_timeout_to_sel(wdd->timeout));
++}
++
++static int tps65911_wdt_stop(struct watchdog_device *wdd)
++{
++	struct tps65910 *tps65910 = watchdog_get_drvdata(wdd);
++
++	return tps65911_wdt_write_sel(tps65910, 0);
++}
++
++static int tps65911_wdt_ping(struct watchdog_device *wdd)
++{
++	struct tps65910 *tps65910 = watchdog_get_drvdata(wdd);
++
++	/*
++	 * Don't ping late in a reboot or power-off, when the restart and
++	 * power-off handlers may need the I2C bus.
++	 */
++	if (system_state > SYSTEM_RUNNING)
++		return 0;
++
++	return tps65911_wdt_clear_irq(tps65910);
++}
++
++static int tps65911_wdt_set_timeout(struct watchdog_device *wdd,
++				    unsigned int timeout)
++{
++	struct tps65910 *tps65910 = watchdog_get_drvdata(wdd);
++	unsigned int sel = tps65911_wdt_timeout_to_sel(timeout);
++	int ret;
++
++	if (watchdog_hw_running(wdd)) {
++		ret = tps65911_wdt_write_sel(tps65910, sel);
++		if (ret)
++			return ret;
++	}
++
++	wdd->timeout = tps65911_wdt_periods[sel];
++
++	return 0;
++}
++
++static const struct watchdog_info tps65911_wdt_info = {
++	.options = WDIOF_SETTIMEOUT | WDIOF_KEEPALIVEPING | WDIOF_CARDRESET,
++	.identity = "TPS65911 Watchdog",
++};
++
++static const struct watchdog_ops tps65911_wdt_ops = {
++	.owner = THIS_MODULE,
++	.start = tps65911_wdt_start,
++	.stop = tps65911_wdt_stop,
++	.ping = tps65911_wdt_ping,
++	.set_timeout = tps65911_wdt_set_timeout,
++};
++
++static int tps65911_wdt_probe(struct platform_device *pdev)
++{
++	struct device *dev = &pdev->dev;
++	struct tps65910 *tps65910 = dev_get_drvdata(dev->parent);
++	struct watchdog_device *wdd;
++	unsigned int val, sel;
++	int ret;
++
++	wdd = devm_kzalloc(dev, sizeof(*wdd), GFP_KERNEL);
++	if (!wdd)
++		return -ENOMEM;
++
++	ret = regmap_read(tps65910->regmap, TPS65911_WATCHDOG, &val);
++	if (ret)
++		return ret;
++
++	wdd->info = &tps65911_wdt_info;
++	wdd->ops = &tps65911_wdt_ops;
++	wdd->min_timeout = tps65911_wdt_periods[TPS65911_WDT_SEL_MIN];
++	wdd->max_timeout = tps65911_wdt_periods[TPS65911_WDT_SEL_MAX];
++	wdd->timeout = TPS65911_WDT_DEFAULT_TIMEOUT;
++	wdd->parent = dev;
++	wdd->status = WATCHDOG_NOWAYOUT_INIT_STATUS;
++	watchdog_set_drvdata(wdd, tps65910);
++	watchdog_stop_on_reboot(wdd);
++	watchdog_init_timeout(wdd, 0, dev);
++
++	sel = (val & WATCHDOG_WTCHDG_TIME_MASK) >> WATCHDOG_WTCHDG_TIME_SHIFT;
++	if (sel) {
++		/* Still running, most likely because it fired */
++		wdd->bootstatus = WDIOF_CARDRESET;
++
++		ret = tps65911_wdt_start(wdd);
++		if (ret)
++			return ret;
++
++		set_bit(WDOG_HW_RUNNING, &wdd->status);
++	}
++
++	return devm_watchdog_register_device(dev, wdd);
++}
++
++static struct platform_driver tps65911_wdt_driver = {
++	.probe = tps65911_wdt_probe,
++	.driver = {
++		.name = "tps65911-watchdog",
++	},
++};
++module_platform_driver(tps65911_wdt_driver);
++
++MODULE_DESCRIPTION("TI TPS65911 watchdog driver");
++MODULE_LICENSE("GPL");
++MODULE_ALIAS("platform:tps65911-watchdog");
+diff --git a/include/linux/mfd/tps65910.h b/include/linux/mfd/tps65910.h
+index f67ef0a..f33b8f2 100644
+--- a/include/linux/mfd/tps65910.h
++++ b/include/linux/mfd/tps65910.h
+@@ -119,6 +119,7 @@
+ #define TPS65911_LDO6					0x35
+ #define TPS65911_LDO4					0x36
+ #define TPS65911_LDO3					0x37
++#define TPS65911_WATCHDOG				0x69
+ #define TPS65911_VMBCH					0x6A
+ #define TPS65911_VMBCH2					0x6B
+ 
+@@ -749,6 +750,12 @@
+ #define VDDCTRL_ST_SHIFT                                 0
+ 
+ 
++/*Register WATCHDOG  (0x69) bit definitions */
++#define WATCHDOG_WTCHDG_MODE_MASK			0x08
++#define WATCHDOG_WTCHDG_MODE_SHIFT			3
++#define WATCHDOG_WTCHDG_TIME_MASK			0x07
++#define WATCHDOG_WTCHDG_TIME_SHIFT			0
++
+ /*Register VDDCTRL_OP  (0x28) bit definitions */
+ #define VDDCTRL_OP_CMD_MASK                              0x80
+ #define VDDCTRL_OP_CMD_SHIFT                             7

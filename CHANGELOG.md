@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+* New features
+  * Hardware watchdog through the TPS65911 PMIC (`linux/0014`), petted by
+    `nerves_heart`. If the system hangs, the PMIC power-cycles the Surface
+    100-200 seconds after the last pet, and Nerves.Runtime reports the
+    boot as a watchdog reset. The Tegra watchdog is turned off: its reset
+    left the screen black instead of restarting. The kernel now has
+    `CONFIG_WATCHDOG_NOWAYOUT`, like the official Nerves systems.
+
 * Changes
   * Removed the `clk_ignore_unused` and `pd_ignore_unused` kernel
     arguments. They kept the screen on while the Tegra display driver

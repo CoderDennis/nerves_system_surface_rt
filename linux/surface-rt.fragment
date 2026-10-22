@@ -76,3 +76,12 @@ CONFIG_I2C_HOTPLUG_GPIO=y
 # linux/0008-0010.
 CONFIG_BATTERY_CHARGER_SURFACE_RT=y
 CONFIG_SND_SOC_TEGRA_WM8962=y
+
+# Hardware watchdog, petted by nerves_heart. Use the PMIC's watchdog
+# (linux/0014), which power-cycles the Surface RT. The Tegra watchdog's
+# reset goes through the PMC and leaves the screen black instead of
+# restarting. NOWAYOUT matches the official Nerves systems: the watchdog
+# can't be stopped once nerves_heart has started it.
+# CONFIG_TEGRA_WATCHDOG is not set
+CONFIG_TPS65911_WATCHDOG=y
+CONFIG_WATCHDOG_NOWAYOUT=y
