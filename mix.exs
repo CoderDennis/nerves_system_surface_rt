@@ -2,6 +2,7 @@ defmodule NervesSystemSurfaceRt.MixProject do
   use Mix.Project
 
   @app :nerves_system_surface_rt
+  @source_url "https://github.com/CoderDennis/nerves_system_surface_rt"
   @version Path.join(__DIR__, "VERSION")
            |> File.read!()
            |> String.trim()
@@ -16,6 +17,7 @@ defmodule NervesSystemSurfaceRt.MixProject do
       compilers: Mix.compilers() ++ [:nerves_package],
       nerves_package: nerves_package(),
       description: description(),
+      source_url: @source_url,
       package: package(),
       deps: deps(),
       aliases: [loadconfig: [&bootstrap/1]],
@@ -92,7 +94,8 @@ defmodule NervesSystemSurfaceRt.MixProject do
   defp package do
     [
       files: package_files(),
-      licenses: ["GPL-2.0-only", "GPL-2.0-or-later"]
+      licenses: ["GPL-2.0-only", "GPL-2.0-or-later"],
+      links: %{"GitHub" => @source_url}
     ]
   end
 

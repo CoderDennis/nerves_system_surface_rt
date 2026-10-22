@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## v0.2.1 - 2026-10-22
 
 * New features
   * Hardware watchdog through the TPS65911 PMIC (`linux/0014`), petted by
