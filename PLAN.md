@@ -33,6 +33,9 @@ What's done and what's next for
 - [x] Battery status and audio (drivers backported from Linux 7.x)
 - [x] Touch/Type Cover, with hotplug (`linux/0011`, `linux/0012`)
 - [x] Touchscreen (multitouch, HID over I2C)
+- [x] Accelerometer in the sensor hub (IIO `accel_3d`), for screen
+      rotation. Standing in landscape on the kickstand, gravity is along
+      −y (e.g. `{22, -859, -447}` for x, y, z).
 - [x] Audio playback through the speakers (fixes a mainline WM8962 bug,
       see `linux/0013`). The speaker volume starts at 0; turn it up with
       `amixer -c 0 sset Speaker 110`.

@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+* New features
+  * Accelerometer in the HID sensor hub, through IIO
+    (`CONFIG_HID_SENSOR_ACCEL_3D`), for screen rotation. It shows up as
+    `/sys/bus/iio/devices/iio:deviceN` with the name `accel_3d`.
+
 ## v0.2.1 - 2026-10-22
 
 * New features

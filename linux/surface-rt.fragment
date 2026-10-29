@@ -71,6 +71,14 @@ CONFIG_HID_MULTITOUCH=y
 CONFIG_HID_SENSOR_HUB=y
 CONFIG_I2C_HOTPLUG_GPIO=y
 
+# Accelerometer in the sensor hub, for screen rotation. It shows up as an
+# IIO device named "accel_3d" under /sys/bus/iio/devices, with
+# in_accel_{x,y,z}_raw.
+CONFIG_IIO=y
+CONFIG_HID_SENSOR_IIO_COMMON=y
+CONFIG_HID_SENSOR_IIO_TRIGGER=y
+CONFIG_HID_SENSOR_ACCEL_3D=y
+
 # Battery and charger (embedded controller) and audio (WM8962 codec). Both
 # drivers were added to mainline after 6.18 and are backported in
 # linux/0008-0010.
