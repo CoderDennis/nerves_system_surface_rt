@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## v0.2.2 - 2026-10-31
 
 * New features
   * Accelerometer in the HID sensor hub, through IIO
